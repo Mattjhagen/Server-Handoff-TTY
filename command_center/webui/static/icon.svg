@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Server Handoff">
+  <defs>
+    <linearGradient id="g" x1="48" y1="40" x2="464" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="#0b1220"/>
+  <path d="M128 151h256M128 256h256M128 361h256" stroke="#24324b" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="128" cy="151" r="50" fill="url(#g)"/>
+  <circle cx="384" cy="256" r="50" fill="url(#g)"/>
+  <circle cx="128" cy="361" r="50" fill="url(#g)"/>
+  <path d="M178 151h70c54 0 54 105 108 105M334 256h-70c-54 0-54 105-108 105" fill="none" stroke="#f8fafc" stroke-width="24" stroke-linecap="round"/>
+</svg>

@@ -4,6 +4,8 @@ Server Handoff TTY is a graphical command center for supervising a three-server 
 
 The Big Pickle bubble also provides proactive live status: it announces meaningful workflow, queue, worker, GitHub, and node-health changes as they arrive, and posts a heartbeat every two minutes when the state is unchanged. Updates are derived locally from the sanitized dashboard snapshot; background heartbeats do not launch additional model sessions.
 
+The dashboard is installable as a PWA and includes a maskable Server Handoff favicon. Its service worker caches only the application shell; live telemetry endpoints always use the network and are never stored for offline replay.
+
 > **Project status:** working implementation under review. The graphical dashboard, durable TODO model, read-only collectors, bounded AI watcher, tests, and kiosk runbook are implemented under [Projects issue #22](https://github.com/Mattjhagen/Projects/issues/22). Production installation still requires R410 review and human approval.
 
 ## What it shows
