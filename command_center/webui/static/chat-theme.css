@@ -1,0 +1,124 @@
+.chat-toggle {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  font-size: 27px;
+  box-shadow: 0 14px 42px #5f37ff66, 0 0 0 1px #8b5cf644;
+}
+
+.chat-panel {
+  width: min(460px, calc(100vw - 28px));
+  height: min(570px, calc(100vh - 110px));
+  border: 1px solid #7c3aed;
+  border-radius: 28px;
+  background: #080810f7;
+  box-shadow: 0 28px 90px #000d, 0 0 40px #6d28d933;
+}
+
+.chat-panel header {
+  min-height: 108px;
+  align-items: center;
+  padding: 24px 30px;
+  border-bottom-color: #4c1d9555;
+}
+
+.chat-panel header strong {
+  font-size: 20px;
+}
+
+.chat-panel header strong em {
+  color: var(--violet);
+  font-style: normal;
+}
+
+.chat-panel header small {
+  margin-top: 8px;
+  color: var(--cyan);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.chat-panel header small i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 12px #22d3ee99;
+}
+
+.chat-panel header button {
+  color: #85858e;
+  font-size: 34px;
+  cursor: pointer;
+}
+
+.chat-messages {
+  height: calc(100% - 196px);
+  padding: 24px 32px;
+}
+
+.chat-messages p {
+  padding: 17px 20px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.assistant-message {
+  border: 1px solid #6d28d966;
+  background: #201037;
+}
+
+.status-message {
+  border: 1px solid #164e63;
+  border-left: 4px solid var(--cyan);
+  background: #0c2231;
+}
+
+.user-message {
+  border: 1px solid #7c3aed66;
+  background: #4c1d9566;
+}
+
+.chat-panel form {
+  height: 88px;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px;
+  border-top-color: #4c1d9555;
+}
+
+.chat-panel input {
+  height: 52px;
+  border: 2px solid #7c3aed;
+  border-radius: 15px;
+  background: #15151c;
+  padding: 0 17px;
+  font-size: 15px;
+  outline: none;
+}
+
+.chat-panel input:focus {
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 3px #7c3aed33;
+}
+
+.chat-panel form button {
+  width: 58px;
+  height: 52px;
+  padding: 0;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+  font-size: 25px;
+  cursor: pointer;
+}
+
+@media (max-width: 650px) {
+  .chat-panel { right: 14px; bottom: 86px; }
+  .chat-panel header { padding: 20px; }
+  .chat-messages { padding: 18px; }
+}
