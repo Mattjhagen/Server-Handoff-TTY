@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>Server Handoff TTY</title>
   <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/wallboard.css">
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -26,7 +27,8 @@
 
     <section class="lower-grid">
       <article class="panel todos-panel">
-        <div class="section-head"><div><p class="eyebrow">LIVE EXECUTION</p><h2>Todos / Build Plan</h2></div><select id="todoAgent" aria-label="Choose agent"></select></div>
+        <div class="section-head"><div><p class="eyebrow">LIVE EXECUTION</p><h2>Focused Server</h2></div><button id="followActive" class="follow active" type="button">● FOLLOW ACTIVE</button></div>
+        <div id="serverTabs" class="server-tabs" role="tablist" aria-label="Server details"></div>
         <div id="todoMeta" class="muted"></div><ol id="todos" class="todos"></ol>
       </article>
       <article class="panel queue-panel">
