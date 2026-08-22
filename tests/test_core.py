@@ -13,6 +13,7 @@ from command_center.webui.todos import TodoCache, parse_todos
 from command_center.webui.workflow import WorkflowError, is_forward, validate_state
 from command_center.webui.config import WebUIConfig
 from command_center.webui.service import build_server
+from command_center.webui.assistant import ask
 
 
 class SanitizeTests(unittest.TestCase):
@@ -82,6 +83,11 @@ class ServiceTests(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+
+    def test_assistant_safe_ui_command_needs_no_model(self):
+        reply = ask("show r410", {})
+        self.assertEqual(reply.ui_action, "focus:r410-sec")
+        self.assertIn("R410", reply.answer)
 
 
 if __name__ == "__main__":

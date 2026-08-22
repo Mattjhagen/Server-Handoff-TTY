@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark">
   <title>Server Handoff TTY</title>
   <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/wallboard.css">
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -26,7 +27,8 @@
 
     <section class="lower-grid">
       <article class="panel todos-panel">
-        <div class="section-head"><div><p class="eyebrow">LIVE EXECUTION</p><h2>Todos / Build Plan</h2></div><select id="todoAgent" aria-label="Choose agent"></select></div>
+        <div class="section-head"><div><p class="eyebrow">LIVE EXECUTION</p><h2>Focused Server</h2></div><button id="followActive" class="follow active" type="button">● FOLLOW ACTIVE</button></div>
+        <div id="serverTabs" class="server-tabs" role="tablist" aria-label="Server details"></div>
         <div id="todoMeta" class="muted"></div><ol id="todos" class="todos"></ol>
       </article>
       <article class="panel queue-panel">
@@ -37,6 +39,12 @@
 
     <footer><span>Read-only supervisor · human merge and deployment required</span><span id="schema"></span></footer>
   </main>
+  <button id="chatToggle" class="chat-toggle" type="button" aria-controls="chatPanel" aria-expanded="false">✦</button>
+  <aside id="chatPanel" class="chat-panel" aria-label="Big Pickle assistant" hidden>
+    <header><div><strong>Big Pickle</strong><small>LIVE WORKFLOW ASSISTANT</small></div><button id="chatClose" type="button" aria-label="Close">×</button></header>
+    <div id="chatMessages" class="chat-messages"><p class="assistant-message">Ask what is happening, or type: refresh, follow active, show T310, show R510, or show R410.</p></div>
+    <form id="chatForm"><label for="chatInput" class="sr-only">Ask Big Pickle</label><input id="chatInput" maxlength="800" autocomplete="off" placeholder="What is R510 working on?"><button type="submit">Send</button></form>
+  </aside>
   <template id="nodeTemplate"><article class="node-card panel"><div class="node-head"><div><p class="node-role"></p><h2 class="node-name"></h2></div><span class="node-status"></span></div><p class="node-summary"></p><div class="metrics"><div><span>CPU</span><strong class="cpu"></strong><i><b class="cpu-bar"></b></i></div><div><span>RAM</span><strong class="ram"></strong><i><b class="ram-bar"></b></i></div><div><span>LOAD</span><strong class="load"></strong></div><div><span>UPTIME</span><strong class="uptime"></strong></div></div><div class="node-task"><span>NOW</span><strong class="issue"></strong><small class="activity"></small></div><div class="processes"></div></article></template>
   <script src="/static/app.js" defer></script>
 </body>
