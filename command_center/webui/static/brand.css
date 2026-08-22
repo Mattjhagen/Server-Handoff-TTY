@@ -1,0 +1,26 @@
+.purepulse-logo {
+  display: inline-flex;
+  align-items: baseline;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -.055em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.purepulse-logo em {
+  color: var(--violet);
+  font-style: normal;
+}
+
+.brand-rule {
+  width: 1px;
+  height: 34px;
+  background: var(--line);
+}
+
+@media (max-width: 650px) {
+  .purepulse-logo { font-size: 20px; }
+  .brand-rule { height: 28px; }
+}
