@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="stylesheet" href="/static/wallboard.css">
   <link rel="stylesheet" href="/static/brand.css">
+  <link rel="stylesheet" href="/static/chat-theme.css">
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -44,11 +45,11 @@
 
     <footer><span>Read-only supervisor · human merge and deployment required</span><span id="schema"></span></footer>
   </main>
-  <button id="chatToggle" class="chat-toggle" type="button" aria-controls="chatPanel" aria-expanded="false" aria-label="Open Big Pickle live assistant">✦<span id="chatUnread" class="chat-unread" hidden></span></button>
-  <aside id="chatPanel" class="chat-panel" aria-label="Big Pickle assistant" hidden>
-    <header><div><strong>Big Pickle</strong><small>LIVE WORKFLOW ASSISTANT</small></div><button id="chatClose" type="button" aria-label="Close">×</button></header>
-    <div id="chatMessages" class="chat-messages" aria-live="polite"><p class="assistant-message">Live updates are on. I will report workflow changes immediately and post a heartbeat every two minutes. You can also ask what is happening, or type: refresh, follow active, show T310, show R510, or show R410.</p></div>
-    <form id="chatForm"><label for="chatInput" class="sr-only">Ask Big Pickle</label><input id="chatInput" maxlength="800" autocomplete="off" placeholder="What is R510 working on?"><button type="submit">Send</button></form>
+  <button id="chatToggle" class="chat-toggle" type="button" aria-controls="chatPanel" aria-expanded="false" aria-label="Open PurePulse live assistant"><span aria-hidden="true">▤</span><span id="chatUnread" class="chat-unread" hidden></span></button>
+  <aside id="chatPanel" class="chat-panel" aria-label="PurePulse workflow assistant" hidden>
+    <header><div><strong><span>Pure</span><em>Pulse</em> Assistant</strong><small><i aria-hidden="true"></i> Online · Big Pickle</small></div><button id="chatClose" type="button" aria-label="Close">×</button></header>
+    <div id="chatMessages" class="chat-messages" aria-live="polite"><p class="assistant-message">Hey! 👋 I’m the PurePulse workflow assistant. Live updates are on, and I’ll report server activity, handoffs, blockers, and two-minute status heartbeats here.</p></div>
+    <form id="chatForm"><label for="chatInput" class="sr-only">Ask the PurePulse assistant</label><input id="chatInput" maxlength="800" autocomplete="off" placeholder="Ask a question…"><button type="submit" aria-label="Send question">➤</button></form>
   </aside>
   <template id="nodeTemplate"><article class="node-card panel"><div class="node-head"><div><p class="node-role"></p><h2 class="node-name"></h2></div><span class="node-status"></span></div><p class="node-summary"></p><div class="metrics"><div><span>CPU</span><strong class="cpu"></strong><i><b class="cpu-bar"></b></i></div><div><span>RAM</span><strong class="ram"></strong><i><b class="ram-bar"></b></i></div><div><span>LOAD</span><strong class="load"></strong></div><div><span>UPTIME</span><strong class="uptime"></strong></div></div><div class="node-task"><span>NOW</span><strong class="issue"></strong><small class="activity"></small></div><div class="processes"></div></article></template>
   <script src="/static/app.js" defer></script>
