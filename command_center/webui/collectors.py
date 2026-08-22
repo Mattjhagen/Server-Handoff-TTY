@@ -28,7 +28,7 @@ from command_center.webui.model import (
 from command_center.webui.todos import TodoPanel, TodoCache, parse_todos
 
 AGENT_STATE_DIR = Path(".agent-state")
-MAX_TELEMETRY_BYTES = 4096
+MAX_TELEMETRY_BYTES = 32_768
 MAX_GH_PAYLOAD_BYTES = 262_144
 GITHUB_TIMEOUT_S = 6.0
 
@@ -97,10 +97,10 @@ def parse_telemetry_output(raw: object) -> Optional[Telemetry]:
 
 def collect_node_telemetry(
     ssh_destination: str, *, timeout_s: float = 4.0
-) -> tuple[Optional[Telemetry], list[ProcessRow], str]:
+) -> tuple[Optional[Telemetry], list[ProcessRow], list[str], str, str]:
     """Collect one node snapshot via BatchMode SSH + forced command.
 
-    Returns ``(telemetry_or_None, processes, offline_reason)``.
+    Returns ``(telemetry, processes, report_lines, todos_json, reason)``.
     """
     argv = [
         "ssh",
@@ -117,24 +117,56 @@ def collect_node_telemetry(
     ]
     ok, out, reason = _run_bounded(argv, timeout_s, MAX_TELEMETRY_BYTES)
     if not ok:
-        return None, [], reason or "unreachable"
+        return None, [], [], "", reason or "unreachable"
     telemetry = parse_telemetry_output(out)
     if telemetry is None:
-        return None, [], "malformed telemetry payload"
+        return None, [], [], "", "malformed telemetry payload"
     processes: list[ProcessRow] = []
-    in_processes = False
+    section = ""
+    report_raw: list[str] = []
+    todos_raw: list[str] = []
     for line in out.splitlines():
         stripped = line.strip()
         if stripped == "[processes]":
-            in_processes = True
+            section = "processes"
             continue
-        if in_processes:
+        if stripped == "[agent_report]":
+            section = "report"
+            continue
+        if stripped == "[todos_json]":
+            section = "todos"
+            continue
+        if section == "processes":
             parts = stripped.split("|")
             if len(parts) >= 2:
                 processes.append(ProcessRow.from_raw(parts[0], parts[1]))
-            if len(processes) >= 12:
-                break
-    return telemetry, processes, ""
+        elif section == "report":
+            report_raw.append(line)
+        elif section == "todos":
+            todos_raw.append(line)
+    report_lines = sanitize.sanitize_report_text("\n".join(report_raw)[:8192])
+    return telemetry, processes[:12], report_lines, "\n".join(todos_raw)[:16384], ""
+
+
+def parse_report_status(lines: list[str]) -> tuple[str, str, str]:
+    """Extract display-only state, issue, and summary from a durable report."""
+    state = "unknown"
+    issue = ""
+    summary = ""
+    for index, line in enumerate(lines):
+        clean = sanitize.sanitize_text(line, 300, False)
+        if clean.startswith("- State:"):
+            state = clean.partition(":")[2].strip() or "unknown"
+        elif clean.startswith("- Issue:"):
+            value = clean.partition(":")[2].strip()
+            issue = "" if value.lower() == "none" else value
+        elif clean == "## Summary":
+            for candidate in lines[index + 1:index + 4]:
+                candidate = sanitize.sanitize_text(candidate, sanitize.MAX_SUMMARY_LEN, False).strip()
+                if candidate:
+                    summary = candidate
+                    break
+    return state, issue, summary
 
 
 def read_agent_report(agent_id: str, base_dir: Path = AGENT_STATE_DIR) -> list[str]:
@@ -211,13 +243,19 @@ def build_node_state(
 ) -> NodeState:
     """Collect everything known about one node; failures degrade to OFFLINE."""
     started = time.time() if now_s is None else now_s
-    telemetry, processes, reason = collect_node_telemetry(
+    telemetry, processes, remote_report, remote_todos, reason = collect_node_telemetry(
         ssh_destination, timeout_s=timeout_s
     )
-    report_lines = read_agent_report(agent_id)
-    todos = read_agent_todos(
-        agent_id, stale_after_s=stale_after_s, cache=todos_cache, now_s=started
-    )
+    report_lines = remote_report or read_agent_report(agent_id)
+    if remote_todos.strip():
+        todos = parse_todos(remote_todos, stale_after_s=stale_after_s, now_s=started)
+        if todos.items:
+            todos_cache.store(agent_id, todos)
+    else:
+        todos = read_agent_todos(
+            agent_id, stale_after_s=stale_after_s, cache=todos_cache, now_s=started
+        )
+    report_state, report_issue, report_summary = parse_report_status(report_lines)
     if telemetry is None:
         status = OFFLINE
         last_update = 0.0
@@ -231,10 +269,12 @@ def build_node_state(
         status=status,
         offline_reason=sanitize.sanitize_text(reason, 120),
         agent_identity=sanitize.sanitize_text(agent_id, 60),
-        opencode_state=sanitize.sanitize_text(opencode_state, 40),
-        current_issue=current_issue,
+        opencode_state=sanitize.sanitize_text(
+            report_state if opencode_state == "unknown" else opencode_state, 40
+        ),
+        current_issue=current_issue or report_issue,
         current_pr=current_pr,
-        status_summary=status_summary,
+        status_summary=status_summary or report_summary,
         last_update_epoch_s=last_update,
         telemetry=telemetry or Telemetry(),
         processes=tuple(processes),

@@ -14,6 +14,7 @@ from command_center.webui.workflow import WorkflowError, is_forward, validate_st
 from command_center.webui.config import WebUIConfig
 from command_center.webui.service import build_server
 from command_center.webui.assistant import ask, live_status
+from command_center.webui.collectors import parse_report_status
 
 
 class SanitizeTests(unittest.TestCase):
@@ -105,6 +106,18 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("R410 not healthy", status)
         self.assertIn("1 blocked queue item", status)
         self.assertIn("Active worker: R510", status)
+
+    def test_durable_report_fields_feed_node_status(self):
+        state, issue, summary = parse_report_status([
+            "# Agent status: dev-r510",
+            "- State: in-progress",
+            "- Issue: 23",
+            "## Summary",
+            "Implementing the client progress view",
+        ])
+        self.assertEqual(state, "in-progress")
+        self.assertEqual(issue, "23")
+        self.assertEqual(summary, "Implementing the client progress view")
 
 
 if __name__ == "__main__":
