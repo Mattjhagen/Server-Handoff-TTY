@@ -2,6 +2,8 @@
 
 Server Handoff TTY is a graphical command center for supervising a three-server AI delivery pipeline. It is designed for a Chromium kiosk session on the T310 monitor and provides one place to follow planning, development, security review, system health, durable task progress, and human approval gates.
 
+The Big Pickle bubble also provides proactive live status: it announces meaningful workflow, queue, worker, GitHub, and node-health changes as they arrive, and posts a heartbeat every two minutes when the state is unchanged. Updates are derived locally from the sanitized dashboard snapshot; background heartbeats do not launch additional model sessions.
+
 > **Project status:** working implementation under review. The graphical dashboard, durable TODO model, read-only collectors, bounded AI watcher, tests, and kiosk runbook are implemented under [Projects issue #22](https://github.com/Mattjhagen/Projects/issues/22). Production installation still requires R410 review and human approval.
 
 ## What it shows
