@@ -13,7 +13,7 @@ from command_center.webui.todos import TodoCache, parse_todos
 from command_center.webui.workflow import WorkflowError, is_forward, validate_state
 from command_center.webui.config import WebUIConfig
 from command_center.webui.service import build_server
-from command_center.webui.assistant import ask
+from command_center.webui.assistant import ask, live_status
 
 
 class SanitizeTests(unittest.TestCase):
@@ -88,6 +88,23 @@ class ServiceTests(unittest.TestCase):
         reply = ask("show r410", {})
         self.assertEqual(reply.ui_action, "focus:r410-sec")
         self.assertIn("R410", reply.answer)
+
+    def test_live_status_summarizes_sanitized_snapshot_without_model(self):
+        status = live_status({
+            "github_reachable": True,
+            "github_stale": False,
+            "workflow": {"current_stage": "development", "state": "working", "item_label": "Northstar"},
+            "nodes": [
+                {"host_alias": "T310", "status": "reachable", "opencode_state": "idle"},
+                {"host_alias": "R510", "status": "reachable", "opencode_state": "working"},
+                {"host_alias": "R410", "status": "offline", "opencode_state": "idle"},
+            ],
+            "queue": [{"state": "blocked"}],
+        })
+        self.assertIn("development / working — Northstar", status)
+        self.assertIn("R410 not healthy", status)
+        self.assertIn("1 blocked queue item", status)
+        self.assertIn("Active worker: R510", status)
 
 
 if __name__ == "__main__":
