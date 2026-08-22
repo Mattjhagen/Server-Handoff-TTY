@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Server Handoff TTY</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="mark">S</span><div><strong>Server Handoff</strong><small>THREE-NODE COMMAND CENTER</small></div></div>
+      <div class="top-status"><span id="sourceBadge" class="badge">CONNECTING</span><span id="clock">--:--:--</span></div>
+    </header>
+
+    <section class="hero panel">
+      <div><p class="eyebrow">ACTIVE DELIVERY PIPELINE</p><h1 id="heroTitle">Waiting for state…</h1><p id="heroMeta">Establishing secure local data stream</p></div>
+      <div class="health-orbit"><span id="healthDot"></span><strong id="healthLabel">SYNCING</strong><small id="freshness">never updated</small></div>
+    </section>
+
+    <section aria-label="Workflow" class="workflow panel" id="workflow"></section>
+
+    <section class="node-grid" id="nodes" aria-live="polite"></section>
+
+    <section class="lower-grid">
+      <article class="panel todos-panel">
+        <div class="section-head"><div><p class="eyebrow">LIVE EXECUTION</p><h2>Todos / Build Plan</h2></div><select id="todoAgent" aria-label="Choose agent"></select></div>
+        <div id="todoMeta" class="muted"></div><ol id="todos" class="todos"></ol>
+      </article>
+      <article class="panel queue-panel">
+        <div class="section-head"><div><p class="eyebrow">GITHUB TRUTH</p><h2>Delivery Queue</h2></div><span id="queueCount" class="count">0</span></div>
+        <div id="queue" class="queue"></div>
+      </article>
+    </section>
+
+    <footer><span>Read-only supervisor · human merge and deployment required</span><span id="schema"></span></footer>
+  </main>
+  <template id="nodeTemplate"><article class="node-card panel"><div class="node-head"><div><p class="node-role"></p><h2 class="node-name"></h2></div><span class="node-status"></span></div><p class="node-summary"></p><div class="metrics"><div><span>CPU</span><strong class="cpu"></strong><i><b class="cpu-bar"></b></i></div><div><span>RAM</span><strong class="ram"></strong><i><b class="ram-bar"></b></i></div><div><span>LOAD</span><strong class="load"></strong></div><div><span>UPTIME</span><strong class="uptime"></strong></div></div><div class="node-task"><span>NOW</span><strong class="issue"></strong><small class="activity"></small></div><div class="processes"></div></article></template>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

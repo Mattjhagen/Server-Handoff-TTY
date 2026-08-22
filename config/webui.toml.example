@@ -1,0 +1,29 @@
+[server]
+host = "127.0.0.1"
+port = 8422
+demo_mode = false
+poll_seconds = 5
+stale_after_s = 180
+ssh_timeout_s = 4
+github_enabled = true
+
+[[nodes]]
+node_id = "t310-pm"
+agent_id = "pm-t310"
+role = "Project Manager"
+host_alias = "T310"
+ssh_destination = "t310-telemetry"
+
+[[nodes]]
+node_id = "r510-dev"
+agent_id = "dev-r510"
+role = "Senior Developer"
+host_alias = "R510"
+ssh_destination = "r510-telemetry"
+
+[[nodes]]
+node_id = "r410-sec"
+agent_id = "security-r410"
+role = "Security / QA"
+host_alias = "R410"
+ssh_destination = "r410-telemetry"

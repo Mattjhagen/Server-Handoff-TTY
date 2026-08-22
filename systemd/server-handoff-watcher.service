@@ -1,0 +1,18 @@
+[Unit]
+Description=Server Handoff bounded AI worker watcher
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/matt/Server-Handoff-TTY
+ExecStart=/home/matt/Server-Handoff-TTY/.venv/bin/python -m command_center.watcher --interval 120
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/matt/.local/state/server-handoff-tty /home/matt/Projects/.agent-state
+
+[Install]
+WantedBy=default.target

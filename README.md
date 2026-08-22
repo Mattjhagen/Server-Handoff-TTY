@@ -2,7 +2,7 @@
 
 Server Handoff TTY is a graphical command center for supervising a three-server AI delivery pipeline. It is designed for a Chromium kiosk session on the T310 monitor and provides one place to follow planning, development, security review, system health, durable task progress, and human approval gates.
 
-> **Project status:** active development. The architecture and operating workflow are defined, while the graphical dashboard is being implemented under [Projects issue #22](https://github.com/Mattjhagen/Projects/issues/22). Do not treat demo data, screenshots, or unfinished installation instructions as production readiness.
+> **Project status:** working implementation under review. The graphical dashboard, durable TODO model, read-only collectors, bounded AI watcher, tests, and kiosk runbook are implemented under [Projects issue #22](https://github.com/Mattjhagen/Projects/issues/22). Production installation still requires R410 review and human approval.
 
 ## What it shows
 
@@ -150,7 +150,22 @@ python3 -m venv .venv
 python -m pip install --upgrade pip
 ```
 
-The final dependency-installation, application-start, test, and lint commands will be recorded here after they exist and have been verified. Avoid inventing commands or running the dashboard as root.
+Run the tests and start the fixture dashboard:
+
+```bash
+python3 -m unittest discover -s tests -v
+scripts/run-dashboard.sh --demo
+```
+
+Open `http://127.0.0.1:8422/`. Live mode reads the mode-600 host-local configuration:
+
+```bash
+install -d -m 700 ~/.config/server-handoff-tty
+install -m 600 config/webui.toml.example ~/.config/server-handoff-tty/webui.toml
+scripts/run-dashboard.sh --live
+```
+
+Avoid running the dashboard as root.
 
 ## Configuration principles
 
@@ -203,7 +218,7 @@ Chromium screenshots should be generated at two supported resolutions and inspec
 
 The intended production layout is a graphical Linux session on the physical T310 display running Chromium in kiosk mode. Linux `tty1` by itself is a text console; the dashboard requires a graphical session associated with that display.
 
-The implementation will provide verified procedures for:
+The included [kiosk runbook](docs/KIOSK_RUNBOOK.md) provides procedures for:
 
 - Installation and first start
 - Enabling or disabling automatic startup
