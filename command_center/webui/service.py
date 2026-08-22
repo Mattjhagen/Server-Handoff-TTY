@@ -23,6 +23,7 @@ from command_center.webui.config import DEFAULT_HOST, DEFAULT_PORT, WebUIConfig
 from command_center.webui.model import DashboardState, QueueItem, WorkflowSnapshot
 from command_center.webui.todos import TodoCache
 from command_center.webui.workflow import Handoff
+from command_center.webui.assistant import ask
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 SSE_HEARTBEAT_S = 15.0
@@ -224,7 +225,24 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
                 return
 
         def do_POST(self) -> None:  # noqa: N802
-            self._reject_write()
+            if self.path.split("?", 1)[0] != "/api/chat":
+                self._reject_write()
+                return
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                size = 0
+            if size < 1 or size > 8192:
+                self._send_bytes(400, b"invalid request", "text/plain; charset=utf-8")
+                return
+            try:
+                payload = json.loads(self.rfile.read(size))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                self._send_bytes(400, b"invalid json", "text/plain; charset=utf-8")
+                return
+            reply = ask(payload.get("question", "") if isinstance(payload, dict) else "", provider.state().to_dict())
+            body = json.dumps(reply.to_dict()).encode("utf-8")
+            self._send_bytes(200, body, CONTENT_TYPES[".json"])
 
         def do_PUT(self) -> None:  # noqa: N802
             self._reject_write()
