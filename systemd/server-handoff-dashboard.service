@@ -1,0 +1,19 @@
+[Unit]
+Description=Server Handoff TTY dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/matt/Server-Handoff-TTY
+ExecStart=/home/matt/Server-Handoff-TTY/.venv/bin/python -m command_center.webui.service --live
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/matt/.cache/server-handoff-tty
+
+[Install]
+WantedBy=default.target

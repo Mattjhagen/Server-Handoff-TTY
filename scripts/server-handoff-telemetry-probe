@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+"""Fixed, read-only telemetry command intended for forced-command SSH keys."""
+import os
+import pathlib
+import subprocess
+import time
+
+def meminfo():
+    values = {}
+    for line in pathlib.Path('/proc/meminfo').read_text().splitlines():
+        key, value = line.split(':', 1)
+        values[key] = float(value.strip().split()[0]) / 1024
+    return values
+
+mem = meminfo()
+load = os.getloadavg()[0]
+cpu_count = max(1, os.cpu_count() or 1)
+print(f"cpu_percent={min(100.0, load / cpu_count * 100):.1f}")
+print(f"ram_used_mb={mem.get('MemTotal', 0)-mem.get('MemAvailable', 0):.1f}")
+print(f"ram_total_mb={mem.get('MemTotal', 0):.1f}")
+print(f"load_1={load:.2f}")
+print(f"uptime_s={float(pathlib.Path('/proc/uptime').read_text().split()[0]):.0f}")
+print(f"process_count={len([p for p in pathlib.Path('/proc').iterdir() if p.name.isdigit()])}")
+print('[processes]')
+proc = subprocess.run(['ps','-eo','pid=,comm=','--sort=-%cpu'], capture_output=True, text=True, timeout=3)
+for line in proc.stdout.splitlines()[:12]:
+    parts = line.strip().split(maxsplit=1)
+    if len(parts) == 2:
+        print(f"{parts[0]}|{parts[1]}")

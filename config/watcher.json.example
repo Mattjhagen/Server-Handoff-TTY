@@ -1,0 +1,19 @@
+{
+  "schema": "server-handoff-watcher-policy/v1",
+  "workers": [
+    {
+      "id": "dev-r510-issue-22",
+      "enabled": true,
+      "auto_restart": false,
+      "process_marker": "opencode run",
+      "report_path": "/home/operator/Projects/.agent-state/dev-r510/latest.md",
+      "log_path": "/home/operator/Projects/.agent-state/dev-r510/watcher.log",
+      "cwd": "/home/operator/Server-Handoff-TTY",
+      "allowed_root": "/home/operator/Server-Handoff-TTY",
+      "stale_after_seconds": 300,
+      "restart_cooldown_seconds": 600,
+      "max_restarts": 2,
+      "restart_argv": ["/snap/bin/opencode", "run", "--model", "opencode/big-pickle", "Continue the already-claimed issue using its durable GitHub acceptance criteria. Do not merge or deploy."]
+    }
+  ]
+}
