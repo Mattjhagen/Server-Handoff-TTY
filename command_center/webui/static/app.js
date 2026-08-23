@@ -146,6 +146,20 @@ function render(d){
     }
   }
 
+  // Check if manual intervention is required (e.g. awaiting-human, review, or blocked task)
+  const needsIntervention = (d.workflow?.state === 'awaiting-human' || d.workflow?.current_stage === 'human') ||
+                            (d.queue || []).some(q => q.state === 'awaiting-human' || q.state === 'blocked' || q.stage === 'human');
+
+  if (needsIntervention) {
+    $('chatToggle').classList.add('blink-manual-intervention');
+    $('chatUnread').hidden = false;
+    $('chatUnread').classList.add('blink-manual-intervention');
+  } else {
+    $('chatToggle').classList.remove('blink-manual-intervention');
+    $('chatUnread').classList.remove('blink-manual-intervention');
+    if ($('chatPanel').hidden) $('chatUnread').hidden = true;
+  }
+
   text($('sourceBadge'),d.demo_mode?'DEMO DATA':d.github_stale?'GITHUB STALE':'LIVE');
   $('sourceBadge').style.color=d.demo_mode?'var(--amber)':'var(--green)';
   text($('heroTitle'),d.workflow?.item_label||'No active delivery');
@@ -175,7 +189,7 @@ $('followActive').onclick=()=>{
 
 setInterval(()=>{text($('clock'),central(new Date()));if(state)text($('freshness'),`updated ${age(state.generated_at_epoch_s)} · ${central(new Date(state.generated_at_epoch_s*1000))}`)},1000);
 
-function chatMessage(value,kind){const p=document.className==='user'?'user-message':kind==='status'?'status-message':'assistant-message';text(p,value);$('chatMessages').append(p);while($('chatMessages').children.length>60)$('chatMessages').firstElementChild.remove();$('chatMessages').scrollTop=$('chatMessages').scrollHeight}
+function chatMessage(value,kind){const p=document.createElement('p');p.className=kind==='user'?'user-message':kind==='status'?'status-message':'assistant-message';text(p,value);$('chatMessages').append(p);while($('chatMessages').children.length>60)$('chatMessages').firstElementChild.remove();$('chatMessages').scrollTop=$('chatMessages').scrollHeight}
 function applyUiAction(action){if(action==='refresh')fetchState();else if(action==='follow-active')$('followActive').click();else if(action.startsWith('focus:'))choose(action.slice(6),false)}
 
 $('chatToggle').onclick=()=>{$('chatPanel').hidden=false;$('chatToggle').setAttribute('aria-expanded','true');$('chatUnread').hidden=true;$('chatInput').focus()};

@@ -40,3 +40,36 @@
   border-radius: 999px;
   box-shadow: 0 0 12px rgba(34, 211, 238, 0.8);
 }
+
+/* Red Blue Red Blue Blinking Notification for Manual Intervention */
+@keyframes blink-red-blue {
+  0% {
+    background-color: #ef4444 !important;
+    box-shadow: 0 0 25px #ef4444, 0 0 50px #ef4444 !important;
+    color: #ffffff !important;
+  }
+  50% {
+    background-color: #3b82f6 !important;
+    box-shadow: 0 0 25px #3b82f6, 0 0 50px #3b82f6 !important;
+    color: #ffffff !important;
+  }
+  100% {
+    background-color: #ef4444 !important;
+    box-shadow: 0 0 25px #ef4444, 0 0 50px #ef4444 !important;
+    color: #ffffff !important;
+  }
+}
+
+.blink-manual-intervention {
+  animation: blink-red-blue 0.8s infinite ease-in-out !important;
+  position: relative !important;
+  z-index: 100 !important;
+}
+
+.chat-unread.blink-manual-intervention {
+  width: 18px !important;
+  height: 18px !important;
+  top: -6px !important;
+  right: -6px !important;
+  animation: blink-red-blue 0.8s infinite ease-in-out !important;
+}
