@@ -132,12 +132,21 @@ function renderTodos(){
 }
 
 function renderQueue(xs){text($('queueCount'),xs.length);const r=$('queue');r.replaceChildren();xs.slice(0,8).forEach(q=>{const row=document.createElement('div');row.className='queue-item';const box=document.createElement('div'),t=document.createElement('strong'),m=document.createElement('small'),s=document.createElement('span');s.className='queue-state';text(t,q.title);text(m,`${q.key} · ${labels[q.stage]||q.stage}${q.badge?' · '+q.badge:''}`);text(s,q.state);box.append(t,m);row.append(box,s);r.append(row)})}
-function statusSignature(d){return JSON.stringify([d.github_reachable,d.github_stale,d.workflow?.current_stage,d.workflow?.state,d.workflow?.item_label,(d.nodes||[]).map(n=>[n.node_id,n.status,n.opencode_state,n.current_issue]),(d.queue||[]).map(q=>[q.key,q.state])])}
 
 function render(d){
   state=d;
   const ns=d.nodes||[];
-  if(autoFollow||!selected)selected=stageNode[d.workflow?.current_stage]||ns[0]?.node_id||'';
+  
+  // Auto-switch focused server view to whichever server is actively running!
+  const activeWorkerNode = ns.find(n => !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()));
+  if (autoFollow || !selected) {
+    if (activeWorkerNode) {
+      selected = activeWorkerNode.node_id;
+    } else {
+      selected = stageNode[d.workflow?.current_stage] || ns[0]?.node_id || '';
+    }
+  }
+
   text($('sourceBadge'),d.demo_mode?'DEMO DATA':d.github_stale?'GITHUB STALE':'LIVE');
   $('sourceBadge').style.color=d.demo_mode?'var(--amber)':'var(--green)';
   text($('heroTitle'),d.workflow?.item_label||'No active delivery');
@@ -154,7 +163,17 @@ function render(d){
   text($('schema'),d.schema||'');
 }
 
-$('followActive').onclick=()=>{autoFollow=true;if(state)selected=stageNode[state.workflow?.current_stage]||selected;$('followActive').classList.add('active');renderTabs();renderTodos()};
+$('followActive').onclick=()=>{
+  autoFollow=true;
+  if(state) {
+    const activeWorkerNode = state.nodes?.find(n => !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()));
+    selected = activeWorkerNode?.node_id || stageNode[state.workflow?.current_stage] || selected;
+  }
+  $('followActive').classList.add('active');
+  renderTabs();
+  renderTodos();
+};
+
 setInterval(()=>{text($('clock'),central(new Date()));if(state)text($('freshness'),`updated ${age(state.generated_at_epoch_s)} · ${central(new Date(state.generated_at_epoch_s*1000))}`)},1000);
 
 function chatMessage(value,kind){const p=document.createElement('p');p.className=kind==='user'?'user-message':kind==='status'?'status-message':'assistant-message';text(p,value);$('chatMessages').append(p);while($('chatMessages').children.length>60)$('chatMessages').firstElementChild.remove();$('chatMessages').scrollTop=$('chatMessages').scrollHeight}
