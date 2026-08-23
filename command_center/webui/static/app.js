@@ -91,8 +91,8 @@ function renderTodos(){
   headDiv.append(titleSpan, statusBadge);
   logBox.append(headDiv);
 
-  // Agent Report Lines & Execution Log Snippet
-  const logLines = (n.agent_report_lines || []).filter(l => l && l.trim());
+  // Reverse logLines so newest logs are at the top and oldest are at the bottom!
+  const logLines = (n.agent_report_lines || []).filter(l => l && l.trim()).slice().reverse();
   const logContainer = document.createElement('div');
   logContainer.style.cssText = "font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;line-height:1.55;color:#cbd5e1;background:#050811;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);max-height:180px;overflow-y:auto;white-space:pre-wrap;";
 
@@ -175,7 +175,7 @@ $('followActive').onclick=()=>{
 
 setInterval(()=>{text($('clock'),central(new Date()));if(state)text($('freshness'),`updated ${age(state.generated_at_epoch_s)} · ${central(new Date(state.generated_at_epoch_s*1000))}`)},1000);
 
-function chatMessage(value,kind){const p=document.createElement('p');p.className=kind==='user'?'user-message':kind==='status'?'status-message':'assistant-message';text(p,value);$('chatMessages').append(p);while($('chatMessages').children.length>60)$('chatMessages').firstElementChild.remove();$('chatMessages').scrollTop=$('chatMessages').scrollHeight}
+function chatMessage(value,kind){const p=document.className==='user'?'user-message':kind==='status'?'status-message':'assistant-message';text(p,value);$('chatMessages').append(p);while($('chatMessages').children.length>60)$('chatMessages').firstElementChild.remove();$('chatMessages').scrollTop=$('chatMessages').scrollHeight}
 function applyUiAction(action){if(action==='refresh')fetchState();else if(action==='follow-active')$('followActive').click();else if(action.startsWith('focus:'))choose(action.slice(6),false)}
 
 $('chatToggle').onclick=()=>{$('chatPanel').hidden=false;$('chatToggle').setAttribute('aria-expanded','true');$('chatUnread').hidden=true;$('chatInput').focus()};
