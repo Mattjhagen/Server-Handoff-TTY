@@ -97,8 +97,7 @@ function renderTodos(){
   logContainer.style.cssText = "font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;line-height:1.55;color:#cbd5e1;background:#050811;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);max-height:180px;overflow-y:auto;white-space:pre-wrap;";
 
   if (logLines.length) {
-    logContainer.textContent = logLines.join('
-');
+    logContainer.textContent = logLines.join('\n');
   } else if (n.status_summary) {
     logContainer.textContent = `> ${n.status_summary}`;
   } else {
