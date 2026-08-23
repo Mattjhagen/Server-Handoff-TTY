@@ -36,6 +36,7 @@ CONTENT_TYPES = {
     ".svg": "image/svg+xml",
     ".png": "image/png",
     ".json": "application/json; charset=utf-8",
+    ".webmanifest": "application/manifest+json; charset=utf-8",
     ".ico": "image/x-icon",
 }
 
@@ -183,13 +184,19 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
             if path in ("/", "/index.html"):
                 self._serve_static("index.html")
                 return
+            if path == "/manifest.webmanifest":
+                self._serve_static("manifest.webmanifest")
+                return
+            if path == "/sw.js":
+                self._serve_static("sw.js", {"Service-Worker-Allowed": "/"})
+                return
             clean = path.lstrip("/")
             if clean.startswith("static/") and ".." not in clean:
                 self._serve_static(clean.removeprefix("static/"))
                 return
             self._send_bytes(404, b"not found", "text/plain; charset=utf-8")
 
-        def _serve_static(self, name: str) -> None:
+        def _serve_static(self, name: str, extra: Optional[dict] = None) -> None:
             candidate = (STATIC_DIR / name).resolve()
             try:
                 candidate.relative_to(STATIC_DIR.resolve())
@@ -203,7 +210,7 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
             if suffix not in CONTENT_TYPES:
                 self._send_bytes(403, b"forbidden", "text/plain; charset=utf-8")
                 return
-            self._send_bytes(200, candidate.read_bytes(), CONTENT_TYPES[suffix])
+            self._send_bytes(200, candidate.read_bytes(), CONTENT_TYPES[suffix], extra)
 
         def _handle_sse(self) -> None:
             """Server-sent events with heartbeat; client disconnect ends it."""

@@ -216,3 +216,4 @@ $('chatForm').onsubmit=async e=>{e.preventDefault();const input=$('chatInput'),q
 
 async function fetchState(){try{const r=await fetch('/api/state',{cache:'no-store'});if(!r.ok)throw Error(r.status);render(await r.json())}catch(e){text($('sourceBadge'),'DISCONNECTED');$('sourceBadge').style.color='var(--red)'}}
 fetchState();setInterval(fetchState,5000);
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));

@@ -81,6 +81,13 @@ class ServiceTests(unittest.TestCase):
                 state = json.load(response)
                 self.assertEqual(state["schema"], "server-handoff-dashboard-state/v1")
                 self.assertEqual(len(state["nodes"]), 4)
+            with urllib.request.urlopen(base + "/manifest.webmanifest", timeout=2) as response:
+                manifest = json.load(response)
+                self.assertEqual(response.headers["Content-Type"], "application/manifest+json; charset=utf-8")
+                self.assertEqual(manifest["display"], "standalone")
+            with urllib.request.urlopen(base + "/sw.js", timeout=2) as response:
+                self.assertEqual(response.headers["Service-Worker-Allowed"], "/")
+                self.assertIn(b"server-handoff-shell", response.read())
         finally:
             server.shutdown()
             server.server_close()
