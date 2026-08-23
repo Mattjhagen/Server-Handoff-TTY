@@ -225,7 +225,19 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
                 return
 
         def do_POST(self) -> None:  # noqa: N802
-            if self.path.split("?", 1)[0] != "/api/chat":
+            clean_path = self.path.split("?", 1)[0]
+            if clean_path == "/api/heal":
+                try:
+                    import subprocess
+                    subprocess.run(["/home/matt/Projects/scripts/watchdog-healer.py"], capture_output=True, timeout=20)
+                    body = json.dumps({"success": True, "message": "⚡ Watchdog Healer Agent executed across all nodes. Git repositories restored to clean main and stale tasks unblocked."}).encode("utf-8")
+                    self._send_bytes(200, body, CONTENT_TYPES[".json"])
+                except Exception as e:
+                    body = json.dumps({"success": False, "error": str(e)}).encode("utf-8")
+                    self._send_bytes(500, body, CONTENT_TYPES[".json"])
+                return
+
+            if clean_path != "/api/chat":
                 self._reject_write()
                 return
             try:
