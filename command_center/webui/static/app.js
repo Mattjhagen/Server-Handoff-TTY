@@ -1,21 +1,65 @@
-'use strict';
-const stages=['intake','pm-scope','development','security-review','human-approval','merged','released'];
-const labels={'intake':'Intake','pm-scope':'PM Scope','development':'Build','security-review':'Security','human-approval':'Human','merged':'Merged','released':'Released'};
-const stageNode={'intake':'t310-pm','pm-scope':'t310-pm','development':'r510-dev','security-review':'r410-sec','human-approval':'t310-pm','merged':'t310-pm','released':'t310-pm'};
-let state=null,selected='',autoFollow=true,lastStatusSignature='',lastHeartbeat=0;
+const labels={intake:'Intake','pm-scope':'PM Scope',build:'Build',security:'Security',human:'Human',merged:'Merged',released:'Released'},stageNode={'pm-scope':'t310-pm',build:'r510-dev',security:'r410-sec'},stages=['intake','pm-scope','build','security','human','merged','released'];let state=null,selected='',autoFollow=true,lastStatusSignature='',lastHeartbeat=Date.now();
 const $=id=>document.getElementById(id),text=(el,v)=>{el.textContent=v==null?'':String(v)};
 const age=e=>{if(!e)return'never';const s=Math.max(0,Date.now()/1000-e);return s<60?`${Math.floor(s)}s ago`:s<3600?`${Math.floor(s/60)}m ago`:`${Math.floor(s/3600)}h ago`};
 const duration=s=>{s=Math.max(0,Number(s)||0);const d=Math.floor(s/86400),h=Math.floor(s%86400/3600);return d?`${d}d ${h}h`:`${h}h`};
 const central=d=>new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit',second:'2-digit',timeZoneName:'short'}).format(d);
 function renderWorkflow(w){const r=$('workflow');r.replaceChildren();const c=stages.indexOf(w.current_stage);stages.forEach((s,i)=>{const d=document.createElement('div');d.className=`stage ${i<c?'done':''} ${i===c?'active':''}`;text(d,labels[s]);r.append(d)})}
-function card(n){const c=$('nodeTemplate').content.firstElementChild.cloneNode(true);text(c.querySelector('.node-role'),n.role);text(c.querySelector('.node-name'),n.host_alias);const st=c.querySelector('.node-status');st.classList.add(n.status);text(st,n.status);text(c.querySelector('.node-summary'),n.status_summary||n.offline_reason||'No current summary');const t=n.telemetry||{},rp=t.ram_total_mb?100*t.ram_used_mb/t.ram_total_mb:0;text(c.querySelector('.cpu'),`${t.cpu_percent||0}%`);c.querySelector('.cpu-bar').style.width=`${Math.min(100,t.cpu_percent||0)}%`;text(c.querySelector('.ram'),`${Math.round(rp)}%`);c.querySelector('.ram-bar').style.width=`${Math.min(100,rp)}%`;text(c.querySelector('.load'),t.load_1||0);text(c.querySelector('.uptime'),duration(t.uptime_s));text(c.querySelector('.issue'),n.current_issue||'No active issue');const a=(n.todos?.items||[]).find(x=>x.status==='active');text(c.querySelector('.activity'),a?.activity||n.opencode_state||'idle');const p=c.querySelector('.processes');(n.processes||[]).slice(0,5).forEach(x=>{const q=document.createElement('span');text(q,`${x.pid} ${x.name}`);p.append(q)});c.addEventListener('click',()=>choose(n.node_id,false));return c}
+function card(n){
+  const c=$('nodeTemplate').content.firstElementChild.cloneNode(true);
+  text(c.querySelector('.node-role'),n.role);
+  text(c.querySelector('.node-name'),n.host_alias);
+  const st=c.querySelector('.node-status');
+  st.classList.add(n.status);
+  text(st,n.status);
+  
+  const isRunning = !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()) ||
+                    (state?.workflow?.state === 'working' && stageNode[state?.workflow?.current_stage] === n.node_id);
+  if (isRunning) {
+    c.classList.add('running', 'active-runner');
+  }
+  
+  text(c.querySelector('.node-summary'),n.status_summary||n.offline_reason||'No current summary');
+  const t=n.telemetry||{},rp=t.ram_total_mb?100*t.ram_used_mb/t.ram_total_mb:0;
+  text(c.querySelector('.cpu'),`${t.cpu_percent||0}%`);
+  c.querySelector('.cpu-bar').style.width=`${Math.min(100,t.cpu_percent||0)}%`;
+  text(c.querySelector('.ram'),`${Math.round(rp)}%`);
+  c.querySelector('.ram-bar').style.width=`${Math.min(100,rp)}%`;
+  text(c.querySelector('.load'),t.load_1||0);
+  text(c.querySelector('.uptime'),duration(t.uptime_s));
+  text(c.querySelector('.issue'),n.current_issue||'No active issue');
+  const a=(n.todos?.items||[]).find(x=>x.status==='active');
+  text(c.querySelector('.activity'),a?.activity||n.opencode_state||'idle');
+  const p=c.querySelector('.processes');
+  (n.processes||[]).slice(0,5).forEach(x=>{const q=document.createElement('span');text(q,`${x.pid} ${x.name}`);p.append(q)});
+  c.addEventListener('click',()=>choose(n.node_id,false));
+  return c;
+}
 function renderNodes(ns){const r=$('nodes');r.replaceChildren();ns.slice(0,3).forEach(n=>r.append(card(n)))}
 function choose(id,follow){selected=id;autoFollow=follow;$('followActive').classList.toggle('active',follow);renderTabs();renderTodos()}
 function renderTabs(){if(!state)return;const r=$('serverTabs');r.replaceChildren();state.nodes.slice(0,3).forEach(n=>{const b=document.createElement('button');b.type='button';b.className=`server-tab ${n.node_id===selected?'active':''}`;b.setAttribute('role','tab');b.setAttribute('aria-selected',String(n.node_id===selected));text(b,`${n.host_alias} · ${n.role}`);b.onclick=()=>choose(n.node_id,false);r.append(b)})}
 function renderTodos(){if(!state)return;const n=state.nodes.find(x=>x.node_id===selected)||state.nodes[0];if(!n)return;selected=n.node_id;const p=n.todos||{},fresh=state.demo_mode?'synthetic snapshot':`updated ${age(p.updated_at_epoch_s)}${p.stale?' · STALE':''}`;text($('todoMeta'),`${n.host_alias} · ${p.source||'none'} · ${fresh}`);const r=$('todos');r.replaceChildren();if(!(p.items||[]).length){const e=document.createElement('li');e.className='muted';text(e,'No durable build plan reported yet.');r.append(e)}(p.items||[]).forEach(i=>{const li=document.createElement('li');li.className=`todo ${i.status}`;const g=document.createElement('span');g.className='todo-glyph';text(g,`[${i.glyph}]`);const box=document.createElement('div'),l=document.createElement('label');text(l,i.label);box.append(l);if(i.activity){const s=document.createElement('small');text(s,i.activity);box.append(s)}li.append(g,box);r.append(li)})}
 function renderQueue(xs){text($('queueCount'),xs.length);const r=$('queue');r.replaceChildren();xs.slice(0,8).forEach(q=>{const row=document.createElement('div');row.className='queue-item';const box=document.createElement('div'),t=document.createElement('strong'),m=document.createElement('small'),s=document.createElement('span');s.className='queue-state';text(t,q.title);text(m,`${q.key} · ${labels[q.stage]||q.stage}${q.badge?' · '+q.badge:''}`);text(s,q.state);box.append(t,m);row.append(box,s);r.append(row)})}
 function statusSignature(d){return JSON.stringify([d.github_reachable,d.github_stale,d.workflow?.current_stage,d.workflow?.state,d.workflow?.item_label,(d.nodes||[]).map(n=>[n.node_id,n.status,n.opencode_state,n.current_issue]),(d.queue||[]).map(q=>[q.key,q.state])])}
-function liveStatus(d,heartbeat=false){const w=d.workflow||{},ns=d.nodes||[],off=ns.filter(n=>n.status!=='reachable').map(n=>n.host_alias),working=ns.filter(n=>!['','idle','unknown'].includes(n.opencode_state)).map(n=>n.host_alias),blocked=(d.queue||[]).filter(q=>q.state==='blocked').length,prefix=heartbeat?'Two-minute heartbeat':'Live workflow update',health=off.length?`Attention: ${off.join(', ')} not healthy`:'All monitored servers are reachable',github=d.github_reachable&&!d.github_stale?'GitHub is current':'GitHub data is unavailable or stale',focus=w.item_label?` — ${w.item_label}`:'';return `${prefix}: ${labels[w.current_stage]||w.current_stage||'Intake'} / ${w.state||'queued'}${focus}. ${health}. ${github}. ${blocked} blocked queue item${blocked===1?'':'s'}. ${working.length?'Active worker: '+working.join(', ')+'.':'No agent worker is currently active.'}`}
+function liveStatus(d,heartbeat=false){
+  const w=d.workflow||{},ns=d.nodes||[],off=ns.filter(n=>n.status!=='reachable').map(n=>n.host_alias);
+  const activeWorkers=ns.filter(n=>!['','idle','unknown'].includes((n.opencode_state||'').toLowerCase()));
+  const blocked=(d.queue||[]).filter(q=>q.state==='blocked').length;
+  const prefix=heartbeat?'Two-minute heartbeat':'Live workflow update';
+  const health=off.length?`Attention: ${off.join(', ')} not healthy`:'All monitored servers are reachable';
+  const github=d.github_reachable&&!d.github_stale?'GitHub is current':'GitHub data is unavailable or stale';
+  const focus=w.item_label?` — ${w.item_label}`:'';
+  
+  let logOutput = '';
+  if (activeWorkers.length) {
+    logOutput = activeWorkers.map(wNode => {
+      const lines = (wNode.agent_report_lines || []).filter(l => l && !l.startsWith('#')).slice(-3).join(' | ');
+      return `
+⚡ [${wNode.host_alias} LIVE LOGS]: ${wNode.status_summary || 'Working'}${lines ? ' (' + lines + ')' : ''}`;
+    }).join('');
+  }
+  
+  return `${prefix}: ${labels[w.current_stage]||w.current_stage||'Intake'} / ${w.state||'queued'}${focus}. ${health}. ${github}. ${blocked} blocked queue item${blocked===1?'':'s'}. ${activeWorkers.length?'Active worker: '+activeWorkers.map(x=>x.host_alias).join(', ')+'.':'No agent worker is currently active.'}${logOutput}`;
+}
 function pushLiveStatus(d){const now=Date.now(),sig=statusSignature(d),changed=sig!==lastStatusSignature,heartbeat=lastStatusSignature&&now-lastHeartbeat>=120000;if(!lastStatusSignature||changed||heartbeat){chatMessage(liveStatus(d,!changed),'status');lastHeartbeat=now;if($('chatPanel').hidden)$('chatUnread').hidden=false}lastStatusSignature=sig}
 function render(d){state=d;const ns=d.nodes||[];if(autoFollow||!selected)selected=stageNode[d.workflow?.current_stage]||ns[0]?.node_id||'';text($('sourceBadge'),d.demo_mode?'DEMO DATA':d.github_stale?'GITHUB STALE':'LIVE');$('sourceBadge').style.color=d.demo_mode?'var(--amber)':'var(--green)';text($('heroTitle'),d.workflow?.item_label||'No active delivery');text($('heroMeta'),`${labels[d.workflow?.current_stage]||'Intake'} · ${d.workflow?.state||'queued'}`);const off=ns.some(n=>n.status==='offline'),stale=ns.some(n=>n.status==='stale'),ok=!off&&!stale&&d.github_reachable;text($('healthLabel'),ok?'SYSTEM HEALTHY':off?'NODE OFFLINE':'ATTENTION');$('healthLabel').style.color=ok?'var(--green)':'var(--amber)';text($('freshness'),`updated ${age(d.generated_at_epoch_s)} · ${central(new Date(d.generated_at_epoch_s*1000))}`);renderWorkflow(d.workflow||{});renderNodes(ns);renderTabs();renderTodos();renderQueue(d.queue||[]);text($('schema'),d.schema||'');pushLiveStatus(d)}
 $('followActive').onclick=()=>{autoFollow=true;if(state)selected=stageNode[state.workflow?.current_stage]||selected;$('followActive').classList.add('active');renderTabs();renderTodos()};
