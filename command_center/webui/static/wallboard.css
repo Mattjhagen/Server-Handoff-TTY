@@ -73,3 +73,42 @@
   right: -6px !important;
   animation: blink-red-blue 0.8s infinite ease-in-out !important;
 }
+
+/* Glowing Red Halo for Manual Review Server Card */
+@keyframes glowing-red-halo {
+  0% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.5);
+    border-color: #ef4444 !important;
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(239, 68, 68, 1), 0 0 65px rgba(220, 38, 38, 0.8);
+    border-color: #f87171 !important;
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.5);
+    border-color: #ef4444 !important;
+  }
+}
+
+.active-runner.needs-manual-review,
+.node-card.needs-manual-review {
+  animation: glowing-red-halo 1.2s infinite ease-in-out !important;
+  border: 2px solid #ef4444 !important;
+  position: relative !important;
+}
+
+.needs-manual-review::before {
+  content: '🚨 MANUAL REVIEW NEEDED';
+  position: absolute;
+  top: -12px;
+  right: 16px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+  z-index: 10;
+}

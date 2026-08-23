@@ -1,4 +1,4 @@
-const labels={intake:'Intake','pm-scope':'PM Scope',build:'Build',security:'Security',human:'Human',merged:'Merged',released:'Released'},stageNode={'pm-scope':'t310-pm',build:'r510-dev',security:'r410-sec'},stages=['intake','pm-scope','build','security','human','merged','released'];let state=null,selected='',autoFollow=true,lastStatusSignature='',lastHeartbeat=Date.now();
+const labels={intake:'Intake','pm-scope':'PM Scope',build:'Build',security:'Security',human:'Human',merged:'Merged',released:'Released'},stageNode={'pm-scope':'t310-pm',build:'r510-dev',security:'r410-sec','security-review':'r410-sec'},stages=['intake','pm-scope','build','security','human','merged','released'];let state=null,selected='',autoFollow=true,lastStatusSignature='',lastHeartbeat=Date.now();
 const $=id=>document.getElementById(id),text=(el,v)=>{el.textContent=v==null?'':String(v)};
 const age=e=>{if(!e)return'never';const s=Math.max(0,Date.now()/1000-e);return s<60?`${Math.floor(s)}s ago`:s<3600?`${Math.floor(s/60)}m ago`:`${Math.floor(s/3600)}h ago`};
 const duration=s=>{s=Math.max(0,Number(s)||0);const d=Math.floor(s/86400),h=Math.floor(s%86400/3600);return d?`${d}d ${h}h`:`${h}h`};
@@ -18,6 +18,14 @@ function card(n){
                     (state?.workflow?.state === 'working' && stageNode[state?.workflow?.current_stage] === n.node_id);
   if (isRunning) {
     c.classList.add('running', 'active-runner');
+  }
+
+  // Check if this specific server node needs manual intervention
+  const isAffectedServer = (stageNode[state?.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
+  const serverNeedsReview = isAffectedServer && (state?.workflow?.state === 'awaiting-human' || state?.workflow?.current_stage === 'security-review' || state?.workflow?.current_stage === 'human');
+  
+  if (serverNeedsReview) {
+    c.classList.add('needs-manual-review');
   }
   
   text(c.querySelector('.node-summary'),n.status_summary||n.offline_reason||'No current summary');
@@ -46,12 +54,15 @@ function renderTabs(){
   r.replaceChildren();
   state.nodes.slice(0,3).forEach(n=>{
     const isRunning = !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase());
+    const isAffectedServer = (stageNode[state?.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
+    const serverNeedsReview = isAffectedServer && (state?.workflow?.state === 'awaiting-human' || state?.workflow?.current_stage === 'security-review' || state?.workflow?.current_stage === 'human');
+    
     const b=document.createElement('button');
     b.type='button';
-    b.className=`server-tab ${n.node_id===selected?'active':''} ${isRunning?'running':''}`;
+    b.className=`server-tab ${n.node_id===selected?'active':''} ${isRunning?'running':''} ${serverNeedsReview?'needs-manual-review':''}`;
     b.setAttribute('role','tab');
     b.setAttribute('aria-selected',String(n.node_id===selected));
-    text(b,`${isRunning ? '⚡ ' : ''}${n.host_alias} · ${n.role}`);
+    text(b,`${serverNeedsReview ? '🚨 ' : isRunning ? '⚡ ' : ''}${n.host_alias} · ${n.role}`);
     b.onclick=()=>choose(n.node_id,false);
     r.append(b);
   });
@@ -71,22 +82,29 @@ function renderTodos(){
   r.replaceChildren();
 
   // --- Focused Server Live Execution & Output Box ---
+  const isAffectedServer = (stageNode[state?.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
+  const serverNeedsReview = isAffectedServer && (state?.workflow?.state === 'awaiting-human' || state?.workflow?.current_stage === 'security-review' || state?.workflow?.current_stage === 'human');
+
   const logBox = document.createElement('li');
-  logBox.className = `todo active live-log-box ${isRunning ? 'running' : ''}`;
-  logBox.style.cssText = "display:flex;flex-direction:column;gap:8px;padding:12px;background:rgba(8,13,24,0.85);border:1px solid rgba(139,92,246,0.35);border-radius:12px;margin-bottom:12px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.05);";
+  logBox.className = `todo active live-log-box ${isRunning ? 'running' : ''} ${serverNeedsReview ? 'needs-manual-review' : ''}`;
+  logBox.style.cssText = serverNeedsReview
+    ? "display:flex;flex-direction:column;gap:8px;padding:12px;background:rgba(24,8,8,0.9);border:2px solid #ef4444;border-radius:12px;margin-bottom:12px;box-shadow:0 0 20px rgba(239,68,68,0.4);"
+    : "display:flex;flex-direction:column;gap:8px;padding:12px;background:rgba(8,13,24,0.85);border:1px solid rgba(139,92,246,0.35);border-radius:12px;margin-bottom:12px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.05);";
 
   const headDiv = document.createElement('div');
   headDiv.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
   
   const titleSpan = document.createElement('strong');
-  titleSpan.style.cssText = "font-size:12px;color:#22d3ee;letter-spacing:0.05em;display:flex;align-items:center;gap:6px;";
-  titleSpan.textContent = `⚡ LIVE EXECUTION LOGS — ${n.host_alias} (${n.role})`;
+  titleSpan.style.cssText = serverNeedsReview ? "font-size:12px;color:#f87171;letter-spacing:0.05em;display:flex;align-items:center;gap:6px;" : "font-size:12px;color:#22d3ee;letter-spacing:0.05em;display:flex;align-items:center;gap:6px;";
+  titleSpan.textContent = serverNeedsReview ? `🚨 MANUAL REVIEW NEEDED — ${n.host_alias} (${n.role})` : `⚡ LIVE EXECUTION LOGS — ${n.host_alias} (${n.role})`;
 
   const statusBadge = document.createElement('span');
-  statusBadge.style.cssText = isRunning 
+  statusBadge.style.cssText = serverNeedsReview
+    ? "background:#ef4444;color:#fff;font-size:9px;font-weight:900;letter-spacing:0.1em;padding:3px 9px;border-radius:999px;box-shadow:0 0 12px rgba(239,68,68,0.8);"
+    : isRunning 
     ? "background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-size:9px;font-weight:800;letter-spacing:0.1em;padding:3px 9px;border-radius:999px;box-shadow:0 0 10px rgba(34,211,238,0.5);"
     : "color:#8d9bb4;font-size:9px;border:1px solid rgba(141,155,180,0.3);padding:2px 8px;border-radius:999px;";
-  statusBadge.textContent = isRunning ? '● RUNNING AGENT' : `IDLE (${n.opencode_state || 'idle'})`;
+  statusBadge.textContent = serverNeedsReview ? '🚨 AWAITING HUMAN' : isRunning ? '● RUNNING AGENT' : `IDLE (${n.opencode_state || 'idle'})`;
 
   headDiv.append(titleSpan, statusBadge);
   logBox.append(headDiv);
@@ -136,7 +154,7 @@ function render(d){
   state=d;
   const ns=d.nodes||[];
   
-  // Auto-switch focused server view to whichever server is actively running!
+  // Auto-switch focused server view to whichever server is actively running or needs manual review!
   const activeWorkerNode = ns.find(n => !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()));
   if (autoFollow || !selected) {
     if (activeWorkerNode) {
