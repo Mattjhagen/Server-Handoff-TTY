@@ -1,4 +1,4 @@
-const labels={intake:'Intake','pm-scope':'PM Scope',build:'Build',security:'Security',human:'Human',merged:'Merged',released:'Released'},stageNode={'pm-scope':'t310-pm',build:'r510-dev',security:'r410-sec','security-review':'r410-sec'},stages=['intake','pm-scope','build','security','human','merged','released'];let state=null,selected='',autoFollow=true,lastStatusSignature='',lastHeartbeat=Date.now(),rotationIndex=0;
+const labels={intake:'Intake','pm-scope':'PM Scope',build:'Build',security:'Security',human:'Human',merged:'Merged',released:'Released'},stageNode={'pm-scope':'t310-pm',build:'r510-dev',security:'r410-sec','security-review':'r410-sec'},stages=['intake','pm-scope','build','security','human','merged','released'];let state=null,selected='ALL',autoFollow=true,lastStatusSignature='',lastHeartbeat=Date.now(),rotationIndex=0;
 const $=id=>document.getElementById(id),text=(el,v)=>{el.textContent=v==null?'':String(v)};
 const age=e=>{if(!e)return'never';const s=Math.max(0,Date.now()/1000-e);return s<60?`${Math.floor(s)}s ago`:s<3600?`${Math.floor(s/60)}m ago`:`${Math.floor(s/3600)}h ago`};
 const duration=s=>{s=Math.max(0,Number(s)||0);const d=Math.floor(s/86400),h=Math.floor(s%86400/3600);return d?`${d}d ${h}h`:`${h}h`};
@@ -51,6 +51,16 @@ function renderTabs(){
   if(!state)return;
   const r=$('serverTabs');
   r.replaceChildren();
+
+  // Unified All-Servers Tab
+  const allBtn = document.createElement('button');
+  allBtn.type = 'button';
+  allBtn.className = `server-tab ${selected==='ALL'?'active':''}`;
+  allBtn.setAttribute('role','tab');
+  text(allBtn, '⚡ ALL SERVERS (UNIFIED LOGS)');
+  allBtn.onclick = () => choose('ALL', false);
+  r.append(allBtn);
+
   state.nodes.slice(0,3).forEach(n=>{
     const isRunning = !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase());
     const isAffectedServer = (stageNode[state?.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
@@ -69,16 +79,60 @@ function renderTabs(){
 
 function renderTodos(){
   if(!state)return;
-  const n=state.nodes.find(x=>x.node_id===selected)||state.nodes[0];
-  if(!n)return;
-  selected=n.node_id;
-  
-  const isRunning = !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase());
-  const fresh=state.demo_mode?'synthetic snapshot':`updated ${age(n.last_update_epoch_s || n.todos?.updated_at_epoch_s)}`;
-  text($('todoMeta'),`${n.host_alias} · ${n.role} · ${fresh}`);
   
   const r=$('todos');
   r.replaceChildren();
+
+  if (selected === 'ALL') {
+    // --- Unified Live Execution Logs across all 3 nodes ---
+    text($('todoMeta'), `Unified Multi-Server Stream · T310, R510, R410 · live sync`);
+
+    const logBox = document.createElement('li');
+    logBox.className = 'todo active live-log-box';
+    logBox.style.cssText = "display:flex;flex-direction:column;gap:8px;padding:12px;background:rgba(8,13,24,0.85);border:1px solid rgba(139,92,246,0.35);border-radius:12px;margin-bottom:12px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.05);";
+
+    const headDiv = document.createElement('div');
+    headDiv.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+
+    const titleSpan = document.createElement('strong');
+    titleSpan.style.cssText = "font-size:12px;color:#22d3ee;letter-spacing:0.05em;display:flex;align-items:center;gap:6px;";
+    titleSpan.textContent = `⚡ UNIFIED LIVE PIPELINE LOGS (T310 / R510 / R410)`;
+
+    const statusBadge = document.createElement('span');
+    statusBadge.style.cssText = "background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-size:9px;font-weight:800;letter-spacing:0.1em;padding:3px 9px;border-radius:999px;";
+    statusBadge.textContent = '● UNIFIED CLUSTER STREAM';
+
+    headDiv.append(titleSpan, statusBadge);
+    logBox.append(headDiv);
+
+    // Merge logs from all nodes with server tags
+    let unifiedLines = [];
+    (state.nodes || []).forEach(n => {
+      const lines = (n.agent_report_lines || []).filter(l => l && l.trim());
+      lines.forEach(l => {
+        unifiedLines.push(`[${n.host_alias} ${n.role.split(' ')[0]}] ${l}`);
+      });
+    });
+
+    // Newest logs at top, oldest at bottom
+    unifiedLines.reverse();
+
+    const logContainer = document.createElement('div');
+    logContainer.style.cssText = "font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;line-height:1.55;color:#cbd5e1;background:#050811;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);max-height:220px;overflow-y:auto;white-space:pre-wrap;";
+    logContainer.textContent = unifiedLines.length ? unifiedLines.join('\n') : '> Pipeline active across T310, R510, R410.';
+
+    logBox.append(logContainer);
+    r.append(logBox);
+    return;
+  }
+
+  // Single Focused Server View
+  const n=state.nodes.find(x=>x.node_id===selected)||state.nodes[0];
+  if(!n)return;
+
+  const isRunning = !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase());
+  const fresh=state.demo_mode?'synthetic snapshot':`updated ${age(n.last_update_epoch_s || n.todos?.updated_at_epoch_s)}`;
+  text($('todoMeta'),`${n.host_alias} · ${n.role} · ${fresh}`);
 
   const isAffectedServer = (stageNode[state?.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
   const serverNeedsReview = isAffectedServer && (state?.workflow?.state === 'awaiting-human' || state?.workflow?.current_stage === 'security-review' || state?.workflow?.current_stage === 'human');
@@ -150,24 +204,12 @@ function render(d){
   state=d;
   const ns=d.nodes||[];
   
-  // Find all nodes that currently require manual review
   const reviewNodes = ns.filter(n => {
     const isAffected = (stageNode[d.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
     return isAffected && (d.workflow?.state === 'awaiting-human' || d.workflow?.current_stage === 'security-review' || d.workflow?.current_stage === 'human');
   });
 
-  if (autoFollow || !selected) {
-    if (reviewNodes.length === 1) {
-      // Focus on the single server needing manual review!
-      selected = reviewNodes[0].node_id;
-    } else if (reviewNodes.length > 1) {
-      // Rotate between the 2+ servers needing review
-      selected = reviewNodes[rotationIndex % reviewNodes.length].node_id;
-    } else {
-      const activeWorkerNode = ns.find(n => !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()));
-      selected = activeWorkerNode?.node_id || stageNode[d.workflow?.current_stage] || ns[0]?.node_id || '';
-    }
-  }
+  if (!selected) selected = 'ALL';
 
   const needsIntervention = reviewNodes.length > 0 || (d.queue || []).some(q => q.state === 'awaiting-human' || q.state === 'blocked' || q.stage === 'human');
 
@@ -197,27 +239,9 @@ function render(d){
   text($('schema'),d.schema||'');
 }
 
-// 30-second rotation timer for multiple manual review servers
-setInterval(() => {
-  if (!state) return;
-  const reviewNodes = (state.nodes || []).filter(n => {
-    const isAffected = (stageNode[state.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
-    return isAffected && (state.workflow?.state === 'awaiting-human' || state.workflow?.current_stage === 'security-review' || state.workflow?.current_stage === 'human');
-  });
-  if (reviewNodes.length > 1 && autoFollow) {
-    rotationIndex = (rotationIndex + 1) % reviewNodes.length;
-    selected = reviewNodes[rotationIndex].node_id;
-    renderTabs();
-    renderTodos();
-  }
-}, 30000);
-
 $('followActive').onclick=()=>{
   autoFollow=true;
-  if(state) {
-    const activeWorkerNode = state.nodes?.find(n => !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()));
-    selected = activeWorkerNode?.node_id || stageNode[state.workflow?.current_stage] || selected;
-  }
+  selected='ALL';
   $('followActive').classList.add('active');
   renderTabs();
   renderTodos();
