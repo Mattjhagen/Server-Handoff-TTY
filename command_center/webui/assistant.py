@@ -59,7 +59,7 @@ def ask(question: object, state: dict, *, timeout_s: float = 90) -> AssistantRep
 
     if lower in ("restart r510", "restart shaggoth", "restart r510 server"):
         try:
-            subprocess.run("ssh r510 'pkill -f "python3 -m shaggoth"'", shell=True, capture_output=True, timeout=10)
+            subprocess.run(["ssh", "r510", "pkill -f 'python3 -m shaggoth'"], capture_output=True, timeout=10)
             return AssistantReply("⚡ Action executed: Restarted Shaggoth-a1 service process on R510.", "refresh")
         except Exception as e:
             return AssistantReply(f"Failed restarting R510: {e}", "refresh")
