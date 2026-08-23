@@ -1,4 +1,4 @@
-const labels={intake:'Intake','pm-scope':'PM Scope',build:'Build',security:'Security',human:'Human',merged:'Merged',released:'Released'},stageNode={'pm-scope':'t310-pm',build:'r510-dev',security:'r410-sec','security-review':'r410-sec'},stages=['intake','pm-scope','build','security','human','merged','released'];let state=null,selected='',autoFollow=true,lastStatusSignature='',lastHeartbeat=Date.now();
+const labels={intake:'Intake','pm-scope':'PM Scope',build:'Build',security:'Security',human:'Human',merged:'Merged',released:'Released'},stageNode={'pm-scope':'t310-pm',build:'r510-dev',security:'r410-sec','security-review':'r410-sec'},stages=['intake','pm-scope','build','security','human','merged','released'];let state=null,selected='',autoFollow=true,lastStatusSignature='',lastHeartbeat=Date.now(),rotationIndex=0;
 const $=id=>document.getElementById(id),text=(el,v)=>{el.textContent=v==null?'':String(v)};
 const age=e=>{if(!e)return'never';const s=Math.max(0,Date.now()/1000-e);return s<60?`${Math.floor(s)}s ago`:s<3600?`${Math.floor(s/60)}m ago`:`${Math.floor(s/3600)}h ago`};
 const duration=s=>{s=Math.max(0,Number(s)||0);const d=Math.floor(s/86400),h=Math.floor(s%86400/3600);return d?`${d}d ${h}h`:`${h}h`};
@@ -20,7 +20,6 @@ function card(n){
     c.classList.add('running', 'active-runner');
   }
 
-  // Check if this specific server node needs manual intervention
   const isAffectedServer = (stageNode[state?.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
   const serverNeedsReview = isAffectedServer && (state?.workflow?.state === 'awaiting-human' || state?.workflow?.current_stage === 'security-review' || state?.workflow?.current_stage === 'human');
   
@@ -81,7 +80,6 @@ function renderTodos(){
   const r=$('todos');
   r.replaceChildren();
 
-  // --- Focused Server Live Execution & Output Box ---
   const isAffectedServer = (stageNode[state?.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
   const serverNeedsReview = isAffectedServer && (state?.workflow?.state === 'awaiting-human' || state?.workflow?.current_stage === 'security-review' || state?.workflow?.current_stage === 'human');
 
@@ -109,7 +107,6 @@ function renderTodos(){
   headDiv.append(titleSpan, statusBadge);
   logBox.append(headDiv);
 
-  // Reverse logLines so newest logs are at the top and oldest are at the bottom!
   const logLines = (n.agent_report_lines || []).filter(l => l && l.trim()).slice().reverse();
   const logContainer = document.createElement('div');
   logContainer.style.cssText = "font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;line-height:1.55;color:#cbd5e1;background:#050811;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);max-height:180px;overflow-y:auto;white-space:pre-wrap;";
@@ -125,7 +122,6 @@ function renderTodos(){
   logBox.append(logContainer);
   r.append(logBox);
 
-  // --- Durable Build Plan / Todos Section ---
   const p=n.todos||{};
   if((p.items||[]).length){
     p.items.forEach(i=>{
@@ -154,19 +150,26 @@ function render(d){
   state=d;
   const ns=d.nodes||[];
   
-  // Auto-switch focused server view to whichever server is actively running or needs manual review!
-  const activeWorkerNode = ns.find(n => !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()));
+  // Find all nodes that currently require manual review
+  const reviewNodes = ns.filter(n => {
+    const isAffected = (stageNode[d.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
+    return isAffected && (d.workflow?.state === 'awaiting-human' || d.workflow?.current_stage === 'security-review' || d.workflow?.current_stage === 'human');
+  });
+
   if (autoFollow || !selected) {
-    if (activeWorkerNode) {
-      selected = activeWorkerNode.node_id;
+    if (reviewNodes.length === 1) {
+      // Focus on the single server needing manual review!
+      selected = reviewNodes[0].node_id;
+    } else if (reviewNodes.length > 1) {
+      // Rotate between the 2+ servers needing review
+      selected = reviewNodes[rotationIndex % reviewNodes.length].node_id;
     } else {
-      selected = stageNode[d.workflow?.current_stage] || ns[0]?.node_id || '';
+      const activeWorkerNode = ns.find(n => !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()));
+      selected = activeWorkerNode?.node_id || stageNode[d.workflow?.current_stage] || ns[0]?.node_id || '';
     }
   }
 
-  // Check if manual intervention is required (e.g. awaiting-human, review, or blocked task)
-  const needsIntervention = (d.workflow?.state === 'awaiting-human' || d.workflow?.current_stage === 'human') ||
-                            (d.queue || []).some(q => q.state === 'awaiting-human' || q.state === 'blocked' || q.stage === 'human');
+  const needsIntervention = reviewNodes.length > 0 || (d.queue || []).some(q => q.state === 'awaiting-human' || q.state === 'blocked' || q.stage === 'human');
 
   if (needsIntervention) {
     $('chatToggle').classList.add('blink-manual-intervention');
@@ -193,6 +196,21 @@ function render(d){
   renderQueue(d.queue||[]);
   text($('schema'),d.schema||'');
 }
+
+// 30-second rotation timer for multiple manual review servers
+setInterval(() => {
+  if (!state) return;
+  const reviewNodes = (state.nodes || []).filter(n => {
+    const isAffected = (stageNode[state.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
+    return isAffected && (state.workflow?.state === 'awaiting-human' || state.workflow?.current_stage === 'security-review' || state.workflow?.current_stage === 'human');
+  });
+  if (reviewNodes.length > 1 && autoFollow) {
+    rotationIndex = (rotationIndex + 1) % reviewNodes.length;
+    selected = reviewNodes[rotationIndex].node_id;
+    renderTabs();
+    renderTodos();
+  }
+}, 30000);
 
 $('followActive').onclick=()=>{
   autoFollow=true;
