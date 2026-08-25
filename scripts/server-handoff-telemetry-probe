@@ -28,9 +28,10 @@ for line in proc.stdout.splitlines()[:12]:
     if len(parts) == 2:
         print(f"{parts[0]}|{parts[1]}")
 
-# The dashboard key may read only these two durable, non-secret agent-state
-# files.  The identity is fixed by hostname; no caller-controlled path is
-# accepted.  Output is bounded and sanitized again by the collector.
+state_root = pathlib.Path('/home/matt/Projects/.agent-state')
+if not state_root.exists():
+    state_root = pathlib.Path('/home/ubuntu/Projects/.agent-state')
+
 agent_by_host = {
     't310': 'pm-t310',
     'r510': 'dev-r510',
@@ -43,7 +44,7 @@ if not agent_id and state_root.exists():
         active_reports.sort(key=lambda p: p.stat().st_mtime, reverse=True)
         report = active_reports[0]
         agent_id = report.parent.name
-state_root = pathlib.Path('/home/matt/Projects/.agent-state')
+
 if agent_id:
     report = state_root / agent_id / 'latest.md'
     todos = state_root / agent_id / 'todos.json'
@@ -54,8 +55,6 @@ if agent_id:
         pass
     print('[todos_json]')
     try:
-        # JSON is emitted verbatim inside a bounded section and parsed without
-        # shell evaluation by the dashboard.
         print(todos.read_text(errors='replace')[:16384])
     except OSError:
         pass
