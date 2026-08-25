@@ -1,10 +1,13 @@
-const labels={intake:'Intake','pm-scope':'PM Scope',build:'Build',security:'Security',human:'Human',merged:'Merged',released:'Released'},stageNode={'pm-scope':'t310-pm',build:'r510-dev',security:'r410-sec','security-review':'r410-sec'},stages=['intake','pm-scope','build','security','human','merged','released'];let state=null,selected='ALL',autoFollow=true,lastStatusSignature='',lastHeartbeat=Date.now(),rotationIndex=0;
+const labels={intake:'Intake','pm-scope':'PM Scope',build:'Build',security:'Security',human:'Human',merged:'Merged',released:'Released'};
+const stageAlias={intake:'intake','pm-scope':'pm-scope',pm_scope:'pm-scope',pm:'pm-scope',build:'build',development:'build',dev:'build',security:'security','security-review':'security',sec:'security',human:'human','human-approval':'human',client_review:'human',merged:'merged',released:'released',live:'released'};
+const stageNodeMap={intake:['cloud-pm','t310-pm'],'pm-scope':['cloud-pm','t310-pm'],build:['cloud-dev','r510-dev'],development:['cloud-dev','r510-dev'],security:['cloud-sec','r410-sec'],'security-review':['cloud-sec','r410-sec'],human:['cloud-sec','r410-sec']};
+const stages=['intake','pm-scope','build','security','human','merged','released'];let state=null,selected='ALL',autoFollow=true,lastStatusSignature='',lastHeartbeat=Date.now(),rotationIndex=0;
 const $=id=>document.getElementById(id),text=(el,v)=>{el.textContent=v==null?'':String(v)};
 const age=e=>{if(!e)return'never';const s=Math.max(0,Date.now()/1000-e);return s<60?`${Math.floor(s)}s ago`:s<3600?`${Math.floor(s/60)}m ago`:`${Math.floor(s/3600)}h ago`};
 const duration=s=>{s=Math.max(0,Number(s)||0);const d=Math.floor(s/86400),h=Math.floor(s%86400/3600);return d?`${d}d ${h}h`:`${h}h`};
 const central=d=>new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit',second:'2-digit',timeZoneName:'short'}).format(d);
 
-function renderWorkflow(w){const r=$('workflow');r.replaceChildren();const c=stages.indexOf(w.current_stage);stages.forEach((s,i)=>{const d=document.createElement('div');d.className=`stage ${i<c?'done':''} ${i===c?'active':''}`;text(d,labels[s]);r.append(d)})}
+function renderWorkflow(w){const r=$('workflow');r.replaceChildren();const mappedStage=stageAlias[w.current_stage]||'intake';const c=stages.indexOf(mappedStage);stages.forEach((s,i)=>{const d=document.createElement('div');d.className=`stage ${i<c?'done':''} ${i===c?'active':''}`;text(d,labels[s]);r.append(d)})}
 
 function card(n){
   const c=$('nodeTemplate').content.firstElementChild.cloneNode(true);
@@ -13,6 +16,17 @@ function card(n){
   const st=c.querySelector('.node-status');
   st.classList.add(n.status);
   text(st,n.status);
+
+  const curStage = state?.workflow?.current_stage || 'intake';
+  const isStageOwner = (stageNodeMap[curStage] || []).includes(n.node_id);
+  const isWorking = !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()) || (n.telemetry?.cpu_percent > 0.5) || (n.processes || []).some(p => p.name === 'opencode');
+  const hasError = n.status === 'offline' || n.status === 'error' || n.offline_reason || (state?.workflow?.state === 'blocked') || (state?.workflow?.state === 'failed');
+
+  if (hasError) {
+    c.classList.add('halo-error');
+  } else if (isStageOwner || isWorking) {
+    c.classList.add('halo-active');
+  }
   
   const isRunning = !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()) ||
                     (state?.workflow?.state === 'working' && stageNode[state?.workflow?.current_stage] === n.node_id);
