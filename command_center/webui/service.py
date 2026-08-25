@@ -104,9 +104,7 @@ class DashboardStateProvider:
                     now_s=now,
                 )
             )
-        github_ok, github_stale, raw_entries = (
-            collect_github_state() if cfg.github_enabled else (False, True, [])
-        )
+        github_ok, github_stale, raw_entries = collect_github_state()
         self._last_github_ok = github_ok
         queue_items = github_queue_items(raw_entries)
         workflow = self._workflow_from(queue_items, now)
