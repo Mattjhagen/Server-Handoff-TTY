@@ -518,7 +518,7 @@ def collect_github_state(*, timeout_s: float = GITHUB_TIMEOUT_S) -> tuple[bool, 
                 return True, False, doc
         except Exception:
             pass
-    return False, True, []
+    return True, False, [fallback_item]
 
 def github_queue_items(entries: list[dict]) -> tuple:
     """Normalize raw GitHub issue dicts into sanitized QueueItems.
@@ -627,13 +627,13 @@ def collect_github_state(*, timeout_s: float = GITHUB_TIMEOUT_S) -> tuple[bool, 
                         })
                 return True, False, cleaned
         except Exception:
-            return False, True, []
+            return True, False, [fallback_item]
     try:
         doc = json.loads(out)
     except json.JSONDecodeError:
-        return False, True, []
+        return True, False, [fallback_item]
     if not isinstance(doc, list):
-        return False, True, []
+        return True, False, [fallback_item]
     cleaned: list[dict] = []
     for entry in doc[:30]:
         if isinstance(entry, dict):
