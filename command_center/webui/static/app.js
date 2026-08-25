@@ -102,7 +102,28 @@ function renderTodos(){
     statusBadge.style.cssText = "background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;font-size:9px;font-weight:800;letter-spacing:0.1em;padding:3px 9px;border-radius:999px;";
     statusBadge.textContent = '● UNIFIED CLUSTER STREAM';
 
-    headDiv.append(titleSpan, statusBadge);
+    const copyBtn = document.createElement('button');
+    copyBtn.style.cssText = "background:rgba(255,255,255,0.08);color:#a7f3d0;border:1px solid rgba(52,211,153,0.3);font-size:10px;font-weight:700;padding:3px 10px;border-radius:6px;cursor:pointer;transition:all 0.2s ease;display:flex;align-items:center;gap:4px;";
+    copyBtn.innerHTML = "📋 Copy All Logs";
+    copyBtn.onclick = () => {
+      const textToCopy = unifiedLines.length ? unifiedLines.join('\n') : '> Pipeline active across T310, R510, R410.';
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        copyBtn.innerHTML = "✅ Copied!";
+        copyBtn.style.background = "rgba(16,185,129,0.3)";
+        setTimeout(() => {
+          copyBtn.innerHTML = "📋 Copy All Logs";
+          copyBtn.style.background = "rgba(255,255,255,0.08)";
+        }, 2000);
+      }).catch(err => {
+        console.error("Clipboard write failed:", err);
+      });
+    };
+
+    const actionGroup = document.createElement('div');
+    actionGroup.style.cssText = "display:flex;align-items:center;gap:8px;";
+    actionGroup.append(copyBtn, statusBadge);
+
+    headDiv.append(titleSpan, actionGroup);
     logBox.append(headDiv);
 
     // Merge logs from all nodes with server tags
@@ -158,7 +179,26 @@ function renderTodos(){
     : "color:#8d9bb4;font-size:9px;border:1px solid rgba(141,155,180,0.3);padding:2px 8px;border-radius:999px;";
   statusBadge.textContent = serverNeedsReview ? '🚨 AWAITING HUMAN' : isRunning ? '● RUNNING AGENT' : `IDLE (${n.opencode_state || 'idle'})`;
 
-  headDiv.append(titleSpan, statusBadge);
+  const nodeCopyBtn = document.createElement('button');
+  nodeCopyBtn.style.cssText = "background:rgba(255,255,255,0.08);color:#a7f3d0;border:1px solid rgba(52,211,153,0.3);font-size:10px;font-weight:700;padding:3px 10px;border-radius:6px;cursor:pointer;transition:all 0.2s ease;display:flex;align-items:center;gap:4px;";
+  nodeCopyBtn.innerHTML = "📋 Copy Logs";
+  nodeCopyBtn.onclick = () => {
+    const textToCopy = logLines.length ? logLines.join('\n') : (n.status_summary ? `> ${n.status_summary}` : `> Host ${n.host_alias} (${n.role}) is reachable.`);
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      nodeCopyBtn.innerHTML = "✅ Copied!";
+      nodeCopyBtn.style.background = "rgba(16,185,129,0.3)";
+      setTimeout(() => {
+        nodeCopyBtn.innerHTML = "📋 Copy Logs";
+        nodeCopyBtn.style.background = "rgba(255,255,255,0.08)";
+      }, 2000);
+    });
+  };
+
+  const nodeActionGroup = document.createElement('div');
+  nodeActionGroup.style.cssText = "display:flex;align-items:center;gap:8px;";
+  nodeActionGroup.append(nodeCopyBtn, statusBadge);
+
+  headDiv.append(titleSpan, nodeActionGroup);
   logBox.append(headDiv);
 
   const logLines = (n.agent_report_lines || []).filter(l => l && l.trim()).slice().reverse();
