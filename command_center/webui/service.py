@@ -164,12 +164,24 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
             self.end_headers()
             self.wfile.write(body)
 
+        def _get_session_token(self, user: str, passw: str) -> str:
+            import hashlib
+            return hashlib.sha256(f"purepulse-{user}-{passw}-2026-secret".encode("utf-8")).hexdigest()
+
         def _check_auth(self) -> bool:
-            import base64, os
+            import base64, os, urllib.parse
             auth_user = os.environ.get("TTY_AUTH_USER", "matty@purepulse.one")
             auth_pass = os.environ.get("TTY_AUTH_PASS", "PurePulse2026!")
             if not auth_user and not auth_pass:
                 return True
+
+            # 1. Check Cookie Session
+            cookies = self.headers.get("Cookie", "")
+            expected_token = self._get_session_token(auth_user, auth_pass)
+            if f"tty_session={expected_token}" in cookies:
+                return True
+
+            # 2. Check Basic Auth Header
             auth_header = self.headers.get("Authorization", "")
             if auth_header.startswith("Basic "):
                 try:
@@ -179,6 +191,36 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
                         return True
                 except Exception:
                     pass
+
+            # 3. Check /login POST body
+            path = self.path.split("?", 1)[0]
+            if path == "/login" and self.command == "POST":
+                try:
+                    length = int(self.headers.get("Content-Length", "0"))
+                    post_data = self.rfile.read(length).decode("utf-8")
+                    parsed = urllib.parse.parse_qs(post_data)
+                    form_user = parsed.get("username", [""])[0].strip()
+                    form_pass = parsed.get("password", [""])[0].strip()
+                    if (form_user in (auth_user, "matty", "matty@purepulse.one")) and form_pass == auth_pass:
+                        token = self._get_session_token(auth_user, auth_pass)
+                        self.send_response(302)
+                        self.send_header("Set-Cookie", f"tty_session={token}; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly")
+                        self.send_header("Location", "/")
+                        self.end_headers()
+                        return False
+                except Exception:
+                    pass
+
+            # If not authenticated, render HTML login page for GET / or standard prompt
+            if self.command == "GET" and path in ("/", "/index.html"):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                html_bytes = '<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width,initial-scale=1">\n  <title>PurePulse TTY Login</title>\n  <style>\n    body { background: #070b14; color: #fff; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1rem; box-sizing: border-box; }\n    .card { background: #0d121f; border: 1px solid #1f293d; border-radius: 16px; padding: 2rem; width: 100%; max-width: 380px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: center; }\n    h1 { font-size: 1.25rem; font-weight: 800; margin: 0 0 0.35rem; color: #fff; }\n    p { font-size: 0.8125rem; color: #94a3b8; margin: 0 0 1.5rem; }\n    .field { text-align: left; margin-bottom: 1.25rem; }\n    label { display: block; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.35rem; letter-spacing: 0.05em; }\n    input { width: 100%; box-sizing: border-box; background: #141c2e; border: 1px solid #2d3f5e; border-radius: 8px; padding: 0.75rem 1rem; color: #fff; font-size: 0.9375rem; outline: none; transition: border-color 0.15s ease; }\n    input:focus { border-color: #7b2fff; }\n    button { width: 100%; background: linear-gradient(135deg, #7b2fff, #6366f1); color: #fff; border: none; border-radius: 8px; padding: 0.875rem; font-weight: 700; font-size: 0.9375rem; cursor: pointer; margin-top: 0.5rem; box-shadow: 0 4px 14px rgba(123,47,255,0.4); }\n  </style>\n</head>\n<body>\n  <div class="card">\n    <div style="font-size:1.5rem;font-weight:800;margin-bottom:0.75rem;letter-spacing:-0.03em;">Pure<span style="color:#7b2fff;">Pulse</span></div>\n    <h1>TTY Command Center</h1>\n    <p>Sign in to access live server pipeline monitoring</p>\n    <form method="POST" action="/login">\n      <div class="field">\n        <label>Username</label>\n        <input type="text" name="username" autocomplete="username" value="matty@purepulse.one" required>\n      </div>\n      <div class="field">\n        <label>Password</label>\n        <input type="password" name="password" autocomplete="current-password" placeholder="Enter password..." required autofocus>\n      </div>\n      <button type="submit">Log In &amp; Save Password →</button>\n    </form>\n  </div>\n</body>\n</html>'.encode("utf-8")
+                self.wfile.write(html_bytes)
+                return False
+
             self.send_response(401)
             self.send_header("WWW-Authenticate", 'Basic realm="PurePulse TTY Command Center"')
             self.send_header("Content-Type", "text/plain; charset=utf-8")
