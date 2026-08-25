@@ -169,7 +169,7 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
             return hashlib.sha256(f"purepulse-{user}-{passw}-2026-secret".encode("utf-8")).hexdigest()
 
         def _check_auth(self) -> bool:
-            import base64, os, urllib.parse
+            import base64, os
             auth_user = os.environ.get("TTY_AUTH_USER", "matty@purepulse.one")
             auth_pass = os.environ.get("TTY_AUTH_PASS", "PurePulse2026!")
             if not auth_user and not auth_pass:
@@ -187,31 +187,13 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
                 try:
                     decoded = base64.b64decode(auth_header.split(" ", 1)[1]).decode("utf-8")
                     user, passw = decoded.split(":", 1)
-                    if (user in (auth_user, "matty", "matty@purepulse.one")) and passw == auth_pass:
+                    if (user.lower() in (auth_user.lower(), "matty", "matty@purepulse.one")) and passw == auth_pass:
                         return True
                 except Exception:
                     pass
 
-            # 3. Check /login POST body
-            path = self.path.split("?", 1)[0]
-            if path == "/login" and self.command == "POST":
-                try:
-                    length = int(self.headers.get("Content-Length", "0"))
-                    post_data = self.rfile.read(length).decode("utf-8")
-                    parsed = urllib.parse.parse_qs(post_data)
-                    form_user = parsed.get("username", [""])[0].strip()
-                    form_pass = parsed.get("password", [""])[0].strip()
-                    if (form_user in (auth_user, "matty", "matty@purepulse.one")) and form_pass == auth_pass:
-                        token = self._get_session_token(auth_user, auth_pass)
-                        self.send_response(302)
-                        self.send_header("Set-Cookie", f"tty_session={token}; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly")
-                        self.send_header("Location", "/")
-                        self.end_headers()
-                        return False
-                except Exception:
-                    pass
-
             # If not authenticated, render HTML login page for GET / or standard prompt
+            path = self.path.split("?", 1)[0]
             if self.command == "GET" and path in ("/", "/index.html"):
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -227,6 +209,30 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
             self.end_headers()
             self.wfile.write(b"401 Unauthorized - PurePulse Authentication Required\n")
             return False
+
+        def _handle_form_login(self) -> None:
+            import os, urllib.parse
+            auth_user = os.environ.get("TTY_AUTH_USER", "matty@purepulse.one")
+            auth_pass = os.environ.get("TTY_AUTH_PASS", "PurePulse2026!")
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                post_data = self.rfile.read(length).decode("utf-8")
+                parsed = urllib.parse.parse_qs(post_data)
+                form_user = parsed.get("username", [""])[0].strip()
+                form_pass = parsed.get("password", [""])[0].strip()
+                if (form_user.lower() in (auth_user.lower(), "matty", "matty@purepulse.one")) and form_pass == auth_pass:
+                    token = self._get_session_token(auth_user, auth_pass)
+                    self.send_response(302)
+                    self.send_header("Set-Cookie", f"tty_session={token}; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly")
+                    self.send_header("Location", "/")
+                    self.end_headers()
+                    return
+            except Exception:
+                pass
+            self.send_response(401)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"<h3 style='color:red;font-family:sans-serif;'>Invalid username or password. <a href='/'>Try again</a></h3>")
 
         def do_GET(self) -> None:
             if not self._check_auth():
@@ -287,7 +293,12 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
             except (BrokenPipeError, ConnectionResetError, OSError):
                 return
 
-        def do_POST(self) -> None:
+        def do_POST(self) -> None:  # noqa: N802
+            clean_path = self.path.split("?", 1)[0]
+            if clean_path == "/login":
+                self._handle_form_login()
+                return
+
             if not self._check_auth():
                 return
   # noqa: N802
