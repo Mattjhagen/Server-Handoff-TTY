@@ -164,7 +164,7 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
             self.end_headers()
             self.wfile.write(body)
 
-                def _check_auth(self) -> bool:
+        def _check_auth(self) -> bool:
             import base64, os
             auth_user = os.environ.get("TTY_AUTH_USER", "matty@purepulse.one")
             auth_pass = os.environ.get("TTY_AUTH_PASS", "PurePulse2026!")
