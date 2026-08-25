@@ -37,6 +37,12 @@ agent_by_host = {
     'r410': 'security-r410',
 }
 agent_id = agent_by_host.get(os.uname().nodename.split('.')[0].lower(), '')
+if not agent_id and state_root.exists():
+    active_reports = [p for p in state_root.glob("*/latest.md") if p.is_file()]
+    if active_reports:
+        active_reports.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        report = active_reports[0]
+        agent_id = report.parent.name
 state_root = pathlib.Path('/home/matt/Projects/.agent-state')
 if agent_id:
     report = state_root / agent_id / 'latest.md'
