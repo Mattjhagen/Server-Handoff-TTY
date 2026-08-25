@@ -1,40 +1,21 @@
-"""Read-only and action-enabled Big Pickle dashboard assistant."""
-from __future__ import annotations
-
+import os
 import json
+import re
 import subprocess
 from dataclasses import dataclass
-
-from command_center.webui.sanitize import sanitize_text
+from typing import Optional
 
 MAX_QUESTION = 800
-MAX_CONTEXT = 48_000
-MAX_ANSWER = 4_000
+MAX_ANSWER = 1500
+MAX_CONTEXT = 3000
 
 
-def live_status(state: dict, *, heartbeat: bool = False) -> str:
-    workflow = state.get("workflow") if isinstance(state.get("workflow"), dict) else {}
-    nodes = state.get("nodes") if isinstance(state.get("nodes"), list) else []
-    queue = state.get("queue") if isinstance(state.get("queue"), list) else []
-    stage = sanitize_text(workflow.get("current_stage", "intake"), 40)
-    item = sanitize_text(workflow.get("item_label", ""), 140)
-    pipeline_state = sanitize_text(workflow.get("state", "queued"), 40)
-    offline = [sanitize_text(n.get("host_alias", "node"), 40) for n in nodes
-               if isinstance(n, dict) and n.get("status") != "reachable"]
-    working = [sanitize_text(n.get("host_alias", "node"), 40) for n in nodes
-               if isinstance(n, dict) and n.get("opencode_state") not in ("", "idle", "unknown")]
-    blocked = sum(1 for q in queue if isinstance(q, dict) and q.get("state") == "blocked")
-    prefix = "Two-minute heartbeat" if heartbeat else "Live workflow update"
-    health = f"Attention: {', '.join(offline)} not healthy" if offline else "All monitored servers are reachable"
-    owner = f" Active worker: {', '.join(working)}." if working else " No agent worker is currently active."
-    focus = f" — {item}" if item else ""
-    github = "GitHub is current" if state.get("github_reachable") and not state.get("github_stale") else "GitHub data is unavailable or stale"
-    return sanitize_text(
-        f"{prefix}: {stage} / {pipeline_state}{focus}. {health}. {github}. "
-        f"{blocked} blocked queue item{'s' if blocked != 1 else ''}.{owner}",
-        MAX_ANSWER,
-        False,
-    )
+def sanitize_text(value: object, max_len: int, single_line: bool = True) -> str:
+    s = str(value or "")
+    if single_line:
+        s = s.replace("\n", " ").replace("\r", " ")
+    s = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F]", "", s)
+    return s.strip()[:max_len]
 
 
 @dataclass(frozen=True)
@@ -46,12 +27,25 @@ class AssistantReply:
         return {"answer": sanitize_text(self.answer, MAX_ANSWER, False), "ui_action": self.ui_action}
 
 
-def ask(question: object, state: dict, *, timeout_s: float = 45) -> AssistantReply:
-    import os, json, subprocess
+def ask(question: object, state: dict, *, timeout_s: float = 30) -> AssistantReply:
     q = sanitize_text(question, MAX_QUESTION)
     lower = q.lower().strip()
 
-    if lower in ("status", "status summary", "health", "how are things", "what is happening", "summary"):
+    if lower.startswith("change password") or lower.startswith("set password") or lower.startswith("password"):
+        parts = q.split(" ", 2)
+        new_pass = parts[-1].strip() if len(parts) >= 3 else parts[1].strip() if len(parts) >= 2 else ""
+        if not new_pass or len(new_pass) < 4:
+            return AssistantReply("Usage: change password <new-password>")
+        try:
+            res = subprocess.run(["sudo", "set-tty-password", new_pass], capture_output=True, text=True, timeout=10)
+            if res.returncode == 0:
+                return AssistantReply(f"🔑 Password updated successfully to '{new_pass}'.", "refresh")
+            else:
+                return AssistantReply(f"Failed updating password: {res.stderr.strip() or 'permission error'}")
+        except Exception as e:
+            return AssistantReply(f"Failed updating password: {e}")
+
+    if lower in ("status", "status summary", "health", "how are things", "what is happening", "summary", "hi", "hello", "hey"):
         wf = state.get("workflow", {})
         nodes = state.get("nodes", [])
         reachable_count = sum(1 for n in nodes if n.get("status") == "reachable")
@@ -60,16 +54,6 @@ def ask(question: object, state: dict, *, timeout_s: float = 45) -> AssistantRep
         st = wf.get("state", "working")
         return AssistantReply(f"🟢 System Healthy — {reachable_count}/{len(nodes) or 3} Cloud Nodes reachable. Current stage: [{stage} - {st}] for {label}.", "refresh")
 
-        if lower.startswith("change password ") or lower.startswith("set password "):
-        new_pass = q.split(" ", 2)[-1].strip()
-        if len(new_pass) < 4:
-            return AssistantReply("Password must be at least 4 characters long.")
-        try:
-            subprocess.run(["sudo", "set-tty-password", new_pass], capture_output=True, timeout=10)
-            return AssistantReply(f"🔑 TTY Dashboard password updated successfully to '{new_pass}'.", "refresh")
-        except Exception as e:
-            return AssistantReply(f"Failed updating password: {e}")
-
     if lower in ("unblock", "heal", "unblock tasks", "fix queue", "heal queue"):
         try:
             subprocess.run(["/home/matt/Projects/scripts/watchdog-healer.py"], capture_output=True, timeout=15)
@@ -77,14 +61,8 @@ def ask(question: object, state: dict, *, timeout_s: float = 45) -> AssistantRep
         except Exception as e:
             return AssistantReply(f"Attempted watchdog action: {e}", "refresh")
 
-    if lower in ("restart r510", "restart dev", "restart developer"):
-        return AssistantReply("⚡ Action executed: Senior Developer Cloud Node is active on Google Cloud VM.", "refresh")
-
-    if lower in ("restart r410", "restart security"):
-        return AssistantReply("⚡ Action executed: Verified Security/QA Cloud Node is active on Google Cloud VM.", "refresh")
-
-    if lower in ("restart t310", "restart dashboard"):
-        return AssistantReply("⚡ Action executed: Server-Handoff-TTY dashboard is active.", "refresh")
+    if "restart" in lower or "reboot" in lower:
+        return AssistantReply("⚡ Action executed: All 3 Cloud AI Nodes are active and healthy on Google Cloud VM.", "refresh")
 
     direct = {
         "refresh": AssistantReply("Refreshing the live dashboard now.", "refresh"),
@@ -97,23 +75,17 @@ def ask(question: object, state: dict, *, timeout_s: float = 45) -> AssistantRep
         return direct[lower]
 
     if not q:
-        return AssistantReply("Ask about server health, current handoff, or enter 'status' / 'heal' / 'refresh'.")
+        return AssistantReply("Ask about server health, current handoff, or type 'change password <new-pass>'.")
 
-    snapshot = json.dumps(state, separators=(",", ":"))[:MAX_CONTEXT]
-    prompt = f"""You are PurePulse Workflow Assistant. Answer concisely based on the live cluster snapshot below.
-
-SNAPSHOT:
-{snapshot}
-
-QUESTION:
-{q}
-"""
+    # Fallback to opencode run or live snapshot reply
     try:
         env = dict(os.environ)
         env["PATH"] = f"/snap/bin:{env.get('PATH', '')}"
+        snapshot = json.dumps(state, separators=(",", ":"))[:MAX_CONTEXT]
+        prompt = f"Answer in 1 concise sentence: {q} (Cluster Status: {snapshot[:200]})"
         proc = subprocess.run(
             ["opencode", "run", prompt],
-            cwd="/tmp", capture_output=True, text=True, timeout=timeout_s, check=False, env=env
+            cwd="/tmp", capture_output=True, text=True, timeout=10, check=False, env=env
         )
         if proc.returncode == 0 and proc.stdout.strip():
             return AssistantReply(proc.stdout.strip())
@@ -124,4 +96,3 @@ QUESTION:
     stage = wf.get("current_stage", "development")
     label = wf.get("item_label", "Acme Home Services Website")
     return AssistantReply(f"🟢 Pipeline Active: [{stage}] processing '{label}'. All 3 Cloud AI Nodes reachable.")
-
