@@ -164,7 +164,32 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
             self.end_headers()
             self.wfile.write(body)
 
-        def do_GET(self) -> None:  # noqa: N802 -- stdlib signature
+                def _check_auth(self) -> bool:
+            import base64, os
+            auth_user = os.environ.get("TTY_AUTH_USER", "matty@purepulse.one")
+            auth_pass = os.environ.get("TTY_AUTH_PASS", "PurePulse2026!")
+            if not auth_user and not auth_pass:
+                return True
+            auth_header = self.headers.get("Authorization", "")
+            if auth_header.startswith("Basic "):
+                try:
+                    decoded = base64.b64decode(auth_header.split(" ", 1)[1]).decode("utf-8")
+                    user, passw = decoded.split(":", 1)
+                    if (user in (auth_user, "matty", "matty@purepulse.one")) and passw == auth_pass:
+                        return True
+                except Exception:
+                    pass
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="PurePulse TTY Command Center"')
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(b"401 Unauthorized - PurePulse Authentication Required\n")
+            return False
+
+        def do_GET(self) -> None:
+            if not self._check_auth():
+                return
+  # noqa: N802 -- stdlib signature
             path = self.path.split("?", 1)[0]
             if path == "/api/state":
                 body = json.dumps(provider.state().to_dict()).encode("utf-8")
@@ -220,7 +245,10 @@ def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
             except (BrokenPipeError, ConnectionResetError, OSError):
                 return
 
-        def do_POST(self) -> None:  # noqa: N802
+        def do_POST(self) -> None:
+            if not self._check_auth():
+                return
+  # noqa: N802
             clean_path = self.path.split("?", 1)[0]
             if clean_path == "/api/heal":
                 try:
