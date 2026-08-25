@@ -305,6 +305,9 @@ def github_queue_items(entries: list[dict]) -> tuple:
         "status:released": "released",
         "type:security": "security-review",
         "agent:pm": "pm-scope",
+        "agent:developer": "development",
+        "agent:security": "security-review",
+        "stage:development": "development",
     }
     items: list[QueueItem] = []
     for entry in entries[:30]:

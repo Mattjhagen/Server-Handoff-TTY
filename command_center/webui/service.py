@@ -122,7 +122,7 @@ class DashboardStateProvider:
 
     def _workflow_from(self, queue_items: tuple[QueueItem, ...], now: float) -> WorkflowSnapshot:
         """Derive a coarse workflow snapshot from queue items + last stage."""
-        focus = next((q for q in queue_items if q.state in ("working", "awaiting-human")), None)
+        focus = next((q for q in queue_items if q.state in ("working", "awaiting-human")), queue_items[0] if queue_items else None)
         stage = focus.stage if focus else self._last_workflow_stage
         handoff = Handoff(
             from_stage=self._last_workflow_stage,
