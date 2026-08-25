@@ -102,19 +102,23 @@ def collect_node_telemetry(
 
     Returns ``(telemetry, processes, report_lines, todos_json, reason)``.
     """
-    argv = [
-        "ssh",
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ConnectTimeout=3",
-        "-o",
-        "StrictHostKeyChecking=accept-new",
-        "-o",
-        f"ConnectTimeout={min(int(timeout_s), 5)}",
-        ssh_destination,
-        TELEMETRY_PROBE,
-    ]
+    probe_bin = Path(__file__).resolve().parents[2] / "scripts" / "server-handoff-telemetry-probe"
+    if ssh_destination in ("local", "localhost", "127.0.0.1") and probe_bin.exists():
+        argv = [str(probe_bin)]
+    else:
+        argv = [
+            "ssh",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=3",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            f"ConnectTimeout={min(int(timeout_s), 5)}",
+            ssh_destination,
+            TELEMETRY_PROBE,
+        ]
     ok, out, reason = _run_bounded(argv, timeout_s, MAX_TELEMETRY_BYTES)
     if not ok:
         return None, [], [], "", reason or "unreachable"
@@ -368,7 +372,26 @@ def collect_github_state(*, timeout_s: float = GITHUB_TIMEOUT_S) -> tuple[bool, 
     ]
     ok, out, _reason = _run_bounded(argv, timeout_s, MAX_GH_PAYLOAD_BYTES)
     if not ok:
-        return False, True, []
+        import urllib.request
+        try:
+            req = urllib.request.Request(
+                "https://api.github.com/repos/Mattjhagen/Projects/issues?per_page=30",
+                headers={"User-Agent": "Server-Handoff-TTY/1.0", "Accept": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                cleaned = []
+                for item in data:
+                    if isinstance(item, dict):
+                        cleaned.append({
+                            "number": item.get("number"),
+                            "title": item.get("title"),
+                            "state": item.get("state", "").upper(),
+                            "labels": [{"name": l.get("name")} for l in item.get("labels", []) if isinstance(l, dict)]
+                        })
+                return True, False, cleaned
+        except Exception:
+            return False, True, []
     try:
         doc = json.loads(out)
     except json.JSONDecodeError:

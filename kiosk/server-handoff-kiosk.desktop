@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=Server Handoff TTY
-Exec=chromium --kiosk --no-first-run --disable-session-crashed-bubble http://127.0.0.1:8422/
+Exec=chromium --kiosk --no-first-run --disable-session-crashed-bubble http://35.253.112.41:8422/
 Terminal=false
 X-GNOME-Autostart-enabled=true
