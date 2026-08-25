@@ -31,15 +31,21 @@ def ask(question: object, state: dict, *, timeout_s: float = 30) -> AssistantRep
     q = sanitize_text(question, MAX_QUESTION)
     lower = q.lower().strip()
 
-    if lower.startswith("change password") or lower.startswith("set password") or lower.startswith("password"):
-        parts = q.split(" ", 2)
-        new_pass = parts[-1].strip() if len(parts) >= 3 else parts[1].strip() if len(parts) >= 2 else ""
-        if not new_pass or len(new_pass) < 4:
+    if "password" in lower or "pass" in lower:
+        words = [w.strip() for w in q.split() if w.strip()]
+        new_pass = ""
+        if len(words) >= 2:
+            new_pass = words[-1]
+            if new_pass.lower() in ("password", "pass", "to", "is", "set", "change", "tty") and len(words) >= 3:
+                new_pass = words[-2]
+
+        if not new_pass or len(new_pass) < 4 or new_pass.lower() in ("password", "pass", "change", "set", "tty"):
             return AssistantReply("Usage: change password <new-password>")
+
         try:
             res = subprocess.run(["sudo", "set-tty-password", new_pass], capture_output=True, text=True, timeout=10)
             if res.returncode == 0:
-                return AssistantReply(f"🔑 Password updated successfully to '{new_pass}'.", "refresh")
+                return AssistantReply(f"🔑 TTY Dashboard password updated successfully to '{new_pass}'.", "refresh")
             else:
                 return AssistantReply(f"Failed updating password: {res.stderr.strip() or 'permission error'}")
         except Exception as e:
