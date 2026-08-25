@@ -357,13 +357,16 @@ def github_queue_items(entries: list[dict]) -> tuple:
 
 def collect_github_state(*, timeout_s: float = GITHUB_TIMEOUT_S) -> tuple[bool, bool, list[dict]]:
     """Read-only GitHub snapshot via public HTTPS API primary or gh CLI fallback."""
-    import urllib.request
+    import urllib.request, ssl
     try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         req = urllib.request.Request(
             "https://api.github.com/repos/Mattjhagen/Projects/issues?per_page=30",
             headers={"User-Agent": "Server-Handoff-TTY/1.0", "Accept": "application/json"}
         )
-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+        with urllib.request.urlopen(req, context=ctx, timeout=timeout_s) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             cleaned = []
             for item in data:
