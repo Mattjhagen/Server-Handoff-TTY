@@ -300,7 +300,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         for warning in warnings:
             print(f"config warning: {warning}")
         config = WebUIConfig(
-            host=config.host,
+            host=args.host,
             port=args.port,
             demo_mode=len(config.nodes) == 0,
             poll_seconds=config.poll_seconds,
