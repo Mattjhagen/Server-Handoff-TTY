@@ -29,12 +29,12 @@ function card(n){
   }
   
   const isRunning = !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase()) ||
-                    (state?.workflow?.state === 'working' && stageNode[state?.workflow?.current_stage] === n.node_id);
+                    (state?.workflow?.state === 'working' && (stageNodeMap[state?.workflow?.current_stage] || []).includes(n.node_id));
   if (isRunning) {
     c.classList.add('running', 'active-runner');
   }
 
-  const isAffectedServer = (stageNode[state?.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
+  const isAffectedServer = ((stageNodeMap[state?.workflow?.current_stage] || []).includes(n.node_id)) || (n.opencode_state === 'review');
   const serverNeedsReview = isAffectedServer && (state?.workflow?.state === 'awaiting-human' || state?.workflow?.current_stage === 'security-review' || state?.workflow?.current_stage === 'human');
   
   if (serverNeedsReview) {
@@ -77,7 +77,7 @@ function renderTabs(){
 
   state.nodes.slice(0,3).forEach(n=>{
     const isRunning = !['', 'idle', 'unknown'].includes((n.opencode_state || '').toLowerCase());
-    const isAffectedServer = (stageNode[state?.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
+    const isAffectedServer = ((stageNodeMap[state?.workflow?.current_stage] || []).includes(n.node_id)) || (n.opencode_state === 'review');
     const serverNeedsReview = isAffectedServer && (state?.workflow?.state === 'awaiting-human' || state?.workflow?.current_stage === 'security-review' || state?.workflow?.current_stage === 'human');
     
     const b=document.createElement('button');
@@ -169,7 +169,7 @@ function renderTodos(){
   const fresh=state.demo_mode?'synthetic snapshot':`updated ${age(n.last_update_epoch_s || n.todos?.updated_at_epoch_s)}`;
   text($('todoMeta'),`${n.host_alias} · ${n.role} · ${fresh}`);
 
-  const isAffectedServer = (stageNode[state?.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
+  const isAffectedServer = ((stageNodeMap[state?.workflow?.current_stage] || []).includes(n.node_id)) || (n.opencode_state === 'review');
   const serverNeedsReview = isAffectedServer && (state?.workflow?.state === 'awaiting-human' || state?.workflow?.current_stage === 'security-review' || state?.workflow?.current_stage === 'human');
 
   const logBox = document.createElement('li');
@@ -259,7 +259,7 @@ function render(d){
   const ns=d.nodes||[];
   
   const reviewNodes = ns.filter(n => {
-    const isAffected = (stageNode[d.workflow?.current_stage] === n.node_id) || (n.opencode_state === 'review');
+    const isAffected = ((stageNodeMap[d.workflow?.current_stage] || []).includes(n.node_id)) || (n.opencode_state === 'review');
     return isAffected && (d.workflow?.state === 'awaiting-human' || d.workflow?.current_stage === 'security-review' || d.workflow?.current_stage === 'human');
   });
 
