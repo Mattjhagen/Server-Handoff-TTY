@@ -41,11 +41,11 @@ CONTENT_TYPES = {
 
 CSP_POLICY = (
     "default-src 'self'; "
-    "script-src 'self'; "
-    "style-src 'self'; "
+    "script-src 'self' 'unsafe-inline'; "
+    "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data:; "
-    "connect-src 'self'; "
-    "font-src 'self'; "
+    "connect-src 'self' wss: https:; "
+    "font-src 'self' data:; "
     "object-src 'none'; "
     "base-uri 'none'; "
     "frame-ancestors 'none'"
