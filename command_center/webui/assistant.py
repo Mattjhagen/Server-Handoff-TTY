@@ -60,6 +60,16 @@ def ask(question: object, state: dict, *, timeout_s: float = 45) -> AssistantRep
         st = wf.get("state", "working")
         return AssistantReply(f"🟢 System Healthy — {reachable_count}/{len(nodes) or 3} Cloud Nodes reachable. Current stage: [{stage} - {st}] for {label}.", "refresh")
 
+        if lower.startswith("change password ") or lower.startswith("set password "):
+        new_pass = q.split(" ", 2)[-1].strip()
+        if len(new_pass) < 4:
+            return AssistantReply("Password must be at least 4 characters long.")
+        try:
+            subprocess.run(["sudo", "set-tty-password", new_pass], capture_output=True, timeout=10)
+            return AssistantReply(f"🔑 TTY Dashboard password updated successfully to '{new_pass}'.", "refresh")
+        except Exception as e:
+            return AssistantReply(f"Failed updating password: {e}")
+
     if lower in ("unblock", "heal", "unblock tasks", "fix queue", "heal queue"):
         try:
             subprocess.run(["/home/matt/Projects/scripts/watchdog-healer.py"], capture_output=True, timeout=15)
