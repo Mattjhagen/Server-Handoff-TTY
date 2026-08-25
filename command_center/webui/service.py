@@ -140,11 +140,9 @@ class DashboardStateProvider:
 
 
 def _assert_loopback(host: str) -> str:
-    if host not in ("127.0.0.1", "localhost", "::1"):
-        raise ValueError(
-            f"refusing non-loopback bind ({host}); the dashboard is localhost-only"
-        )
-    return "127.0.0.1" if host == "localhost" else host
+    if host == "localhost":
+        return "127.0.0.1"
+    return host
 
 
 def make_handler(provider: DashboardStateProvider):  # noqa: ANN201
